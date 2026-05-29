@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Tree Shaking"
+  short_description: "React Native Tree Shaking workflow"
+  default_prompt: "Use $rn-perf-tree-shaking to apply React Native Tree Shaking guidance."

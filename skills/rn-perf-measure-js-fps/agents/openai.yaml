@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Measure JS FPS"
+  short_description: "React Native Measure JS FPS workflow"
+  default_prompt: "Use $rn-perf-measure-js-fps to apply React Native Measure JS FPS guidance."

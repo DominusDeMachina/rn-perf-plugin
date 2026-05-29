@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: React Native DevTools"
+  short_description: "React Native React Native DevTools workflow"
+  default_prompt: "Use $rn-perf-react-native-devtools to apply React Native React Native DevTools guidance."

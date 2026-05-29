@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Perfetto Traces"
+  short_description: "React Native Perfetto Traces workflow"
+  default_prompt: "Use $rn-perf-perfetto-traces to apply React Native Perfetto Traces guidance."

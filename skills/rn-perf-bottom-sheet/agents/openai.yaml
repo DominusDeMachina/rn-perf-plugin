@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Bottom Sheet"
+  short_description: "Optimize React Native bottom sheets"
+  default_prompt: "Use $rn-perf-bottom-sheet to diagnose and fix React Native bottom sheet jank."

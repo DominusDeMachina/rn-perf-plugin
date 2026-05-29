@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Analyze App Bundle"
+  short_description: "React Native Analyze App Bundle workflow"
+  default_prompt: "Use $rn-perf-analyze-app-bundle to apply React Native Analyze App Bundle guidance."

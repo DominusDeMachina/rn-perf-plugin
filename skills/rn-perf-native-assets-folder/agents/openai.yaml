@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Native Assets Folder"
+  short_description: "React Native Native Assets Folder workflow"
+  default_prompt: "Use $rn-perf-native-assets-folder to apply React Native Native Assets Folder guidance."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Concurrent React"
+  short_description: "React Native Concurrent React workflow"
+  default_prompt: "Use $rn-perf-concurrent-react to apply React Native Concurrent React guidance."

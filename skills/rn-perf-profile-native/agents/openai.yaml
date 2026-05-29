@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Profile Native"
+  short_description: "React Native Profile Native workflow"
+  default_prompt: "Use $rn-perf-profile-native to apply React Native Profile Native guidance."

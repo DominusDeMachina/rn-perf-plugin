@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Threading Model"
+  short_description: "React Native Threading Model workflow"
+  default_prompt: "Use $rn-perf-threading-model to apply React Native Threading Model guidance."

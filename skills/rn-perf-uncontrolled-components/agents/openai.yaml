@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Uncontrolled Components"
+  short_description: "React Native Uncontrolled Components workflow"
+  default_prompt: "Use $rn-perf-uncontrolled-components to apply React Native Uncontrolled Components guidance."

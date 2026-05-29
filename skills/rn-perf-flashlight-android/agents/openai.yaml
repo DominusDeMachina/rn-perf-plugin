@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Flashlight Android"
+  short_description: "React Native Flashlight Android workflow"
+  default_prompt: "Use $rn-perf-flashlight-android to apply React Native Flashlight Android guidance."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: View Flattening"
+  short_description: "React Native View Flattening workflow"
+  default_prompt: "Use $rn-perf-view-flattening to apply React Native View Flattening guidance."

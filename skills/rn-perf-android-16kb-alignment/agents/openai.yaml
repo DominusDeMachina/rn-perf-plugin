@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Android 16 KB"
+  short_description: "Check Android 16 KB page alignment"
+  default_prompt: "Use $rn-perf-android-16kb-alignment to verify my React Native Android release for 16 KB page-size compatibility."

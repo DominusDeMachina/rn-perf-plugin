@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Disable Bundle Compression"
+  short_description: "React Native Disable Bundle Compression workflow"
+  default_prompt: "Use $rn-perf-disable-bundle-compression to apply React Native Disable Bundle Compression guidance."

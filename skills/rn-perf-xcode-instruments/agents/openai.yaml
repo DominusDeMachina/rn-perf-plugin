@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Xcode Instruments"
+  short_description: "React Native Xcode Instruments workflow"
+  default_prompt: "Use $rn-perf-xcode-instruments to apply React Native Xcode Instruments guidance."

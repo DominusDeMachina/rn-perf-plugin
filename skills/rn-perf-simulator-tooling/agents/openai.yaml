@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Simulator Tooling"
+  short_description: "React Native Simulator Tooling workflow"
+  default_prompt: "Use $rn-perf-simulator-tooling to apply React Native Simulator Tooling guidance."

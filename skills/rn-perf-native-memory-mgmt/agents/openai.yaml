@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Native Memory Mgmt"
+  short_description: "React Native Native Memory Mgmt workflow"
+  default_prompt: "Use $rn-perf-native-memory-mgmt to apply React Native Native Memory Mgmt guidance."

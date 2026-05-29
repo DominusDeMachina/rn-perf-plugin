@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: R8 Android Shrink"
+  short_description: "React Native R8 Android Shrink workflow"
+  default_prompt: "Use $rn-perf-r8-android-shrink to apply React Native R8 Android Shrink guidance."

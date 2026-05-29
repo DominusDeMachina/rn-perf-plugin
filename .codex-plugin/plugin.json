@@ -1,0 +1,37 @@
+{
+  "name": "rn-perf",
+  "version": "0.1.0+codex.20260529065132",
+  "description": "React Native performance toolkit: 36 Codex skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, startup, app-size optimization, and Android release compatibility.",
+  "author": {
+    "name": "Gennadiy Furduy",
+    "email": "Gfurduy@labforty.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "react-native",
+    "performance",
+    "profiling",
+    "mobile",
+    "bundle-size"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "RN Perf",
+    "shortDescription": "React Native performance audit toolkit",
+    "longDescription": "RN Perf bundles Codex skills for auditing and improving React Native performance across measurement, JavaScript rendering, bottom sheets, native profiling, memory, bundle size, startup time, Android release compatibility, and tooling.",
+    "developerName": "Gennadiy Furduy",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use $rn-perf-full-app-test to audit my React Native app.",
+      "Use $rn-perf-analyze-js-bundle to find bundle bloat.",
+      "Use $rn-perf-measure-tti to add startup timing.",
+      "Use $rn-perf-bottom-sheet to fix bottom sheet jank.",
+      "Use $rn-perf-android-16kb-alignment to check Android release compatibility."
+    ],
+    "brandColor": "#0EA5A4"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Atomic State Management"
+  short_description: "React Native Atomic State Management workflow"
+  default_prompt: "Use $rn-perf-atomic-state-management to apply React Native Atomic State Management guidance."

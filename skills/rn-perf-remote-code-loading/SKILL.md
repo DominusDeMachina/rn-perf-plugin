@@ -20,14 +20,15 @@ Migrate the app off Metro to Re.Pack so production code-splitting works, then co
    - Microfrontend architecture with Module Federation.
    - Other optimisations exhausted.
    If you're a small-to-medium Hermes app, **stop and run [[rn-perf-tree-shaking]] first**.
-2. Migrate to Re.Pack: `npx @callstack/repack-init`. Follow the Re.Pack migration guide for plugin/loader incompatibilities (asset plugins, custom Metro resolvers).
-3. Pick a deferral candidate that's **not on the init path** — settings, support flows, in-app payment, debug UI, rarely-used flows.
-4. Convert the import to `React.lazy` with a `webpackChunkName` magic comment.
-5. Wrap usage in `<Suspense fallback={...}>`.
-6. Add a `ScriptManager.shared.addResolver` in `index.js` that returns dev-server URLs under `__DEV__` and CDN URLs in production.
-7. Build for production and confirm a `feature.chunk.bundle` file is emitted alongside `main.bundle`.
-8. Upload chunks to your CDN (Cloudflare/Fastly/S3+CloudFront, or Zephyr Cloud for federated builds). Use content-hash filenames; set HTTP cache headers.
-9. For microfrontends, layer Module Federation on top — but treat that as an organisational decision, not just a perf one.
+2. **Define the security model before writing the resolver.** Remote chunks are executable app code. Production chunk IDs must resolve through a release-pinned manifest or hardcoded allowlist, use HTTPS first-party origins only, and fail closed on unknown IDs.
+3. Migrate to Re.Pack: `npx @callstack/repack-init`. Review the command and prefer pinned package versions in production docs/CI. Follow the Re.Pack migration guide for plugin/loader incompatibilities (asset plugins, custom Metro resolvers).
+4. Pick a deferral candidate that's **not on the init path** — settings, support flows, in-app payment, debug UI, rarely-used flows.
+5. Convert the import to `React.lazy` with a `webpackChunkName` magic comment.
+6. Wrap usage in `<Suspense fallback={...}>`.
+7. Add a `ScriptManager.shared.addResolver` in `index.js` that returns dev-server URLs under `__DEV__` and release-manifest URLs in production.
+8. Build for production and confirm a `feature.chunk.bundle` file is emitted alongside `main.bundle`.
+9. Upload chunks to your CDN (Cloudflare/Fastly/S3+CloudFront, or Zephyr Cloud for federated builds). Use content-hash filenames; set HTTP cache headers.
+10. For microfrontends, layer Module Federation on top — but treat that as an organisational decision, not just a perf one.
 
 ## Code patterns
 
@@ -56,11 +57,23 @@ Split-point conversion (book p. 165):
 ```ts
 import { ScriptManager, Script } from '@callstack/repack/client';
 
-ScriptManager.shared.addResolver((scriptId) => ({
-  url: __DEV__
-    ? Script.getDevServerURL(scriptId)
-    : `https://my-cdn.com/assets/${scriptId}`,
-}));
+const releaseManifest = {
+  settings: 'https://assets.example.com/mobile/1.24.0/settings.8f31a.bundle',
+  support: 'https://assets.example.com/mobile/1.24.0/support.19d2c.bundle',
+};
+
+ScriptManager.shared.addResolver((scriptId) => {
+  if (__DEV__) {
+    return { url: Script.getDevServerURL(scriptId) };
+  }
+
+  const url = releaseManifest[scriptId];
+  if (!url) {
+    throw new Error(`Unknown scriptId: ${scriptId}`);
+  }
+
+  return { url };
+});
 
 AppRegistry.registerComponent(appName, () => App);
 ```
@@ -71,16 +84,25 @@ Init Re.Pack in an existing project:
 npx @callstack/repack-init
 ```
 
+## Security guardrails
+- Do not derive a production chunk URL from user input, query params, remote config strings, or arbitrary `scriptId` values.
+- Serve chunks only from first-party HTTPS origins you control.
+- Pin chunks to the current app release by manifest or allowlist; unknown chunk IDs must fail closed.
+- Keep provenance and version review for Re.Pack, Module Federation plugins, and CDN deployment tooling.
+- Do not pipe remote install scripts directly into a shell; review commands and prefer version-pinned package installs.
+
 ## Verification
 - Production build emits separate `*.chunk.bundle` files alongside `main.bundle`.
 - DevTools / proxy Network panel shows the chunk fetched only when the user navigates into the gated screen.
 - Measure TTI before/after (see [[rn-perf-measure-tti]]). On Hermes, expect modest changes; on JSC, expect substantial init-time wins.
 - Confirm offline behaviour: cache chunks (Re.Pack docs) or accept the gated screen failing without network.
+- In production, an unknown `scriptId` throws before any network request and no third-party URL can be reached.
 
 ## Edge cases & gotchas
 - **Hermes makes this far less compelling.** Don't take on Re.Pack migration just for code-splitting unless one of the gate conditions actually applies (book p. 163).
 - **Re.Pack ≠ Metro.** Migration involves config rewriting; libraries that hook Metro's serializer/resolver may break (some asset and HMR plugins).
 - **Chunk caching is your problem.** After an app update, users may have stale chunks. Use content-hash filenames and HTTP cache headers.
+- **A permissive resolver is a code-loading vulnerability.** Avoid template strings like ``https://cdn/${scriptId}`` unless `scriptId` is validated against a release manifest first.
 - **Offline-first apps** must bundle chunks inline, defeating the purpose. Code-splitting assumes connectivity at first use.
 - **Module Federation complexity is high.** Version drift between micro-apps is "challenging to handle on your own" (book p. 166). Zephyr Cloud is the book's recommended integration partner.
 - **App store policy**: Apple historically restricts shipping new executable code at runtime. JS that doesn't change app capabilities is fine (this is how CodePush/EAS Update operate), but verify policy if chunks add fundamentally new functionality.

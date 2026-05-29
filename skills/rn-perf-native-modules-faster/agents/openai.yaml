@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Native Modules Faster"
+  short_description: "React Native Native Modules Faster workflow"
+  default_prompt: "Use $rn-perf-native-modules-faster to apply React Native Native Modules Faster guidance."

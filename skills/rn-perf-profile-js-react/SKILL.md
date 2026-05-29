@@ -23,6 +23,12 @@ Drives the React Native DevTools **Components**, **Profiler**, and **Performance
    - Cross-check against the React commit lane in the timeline — does the hot function correlate with a render? If yes, fix is upstream in React; if no, it's pure JS work.
 5. **Save the profile**, make the fix, re-record on the same release build / device, and compare actualDuration deltas.
 
+## Review guardrails
+- Measure the target interaction itself. Component count, tree depth, and "this looks big" are supporting context, not proof of a performance bug.
+- Do not recommend `useMemo`, `useCallback`, or dependency-array changes unless the Profiler, a reproducible correctness issue, or "Why did this render?" points to that value.
+- Do not report stale closures from a snippet alone. Show the stale read path, a repro, or profiler evidence.
+- Check library versions before API-specific advice. For example, FlashList v2 no longer needs `estimatedItemSize`.
+
 ## Code patterns
 Lightweight inline instrumentation when you want a heuristic without DevTools attached. Use sparingly — leave out of production:
 

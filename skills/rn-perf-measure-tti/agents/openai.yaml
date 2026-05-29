@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Measure TTI"
+  short_description: "React Native Measure TTI workflow"
+  default_prompt: "Use $rn-perf-measure-tti to apply React Native Measure TTI guidance."

@@ -1,6 +1,6 @@
 ---
 name: rn-perf-full-app-test
-description: Use when the user wants a comprehensive performance audit of a React Native app — walks the full optimization checklist from Callstack's "The Ultimate Guide to React Native Optimization" (2025) across JavaScript, Native, and Bundling layers, scans the codebase for symptoms, and dispatches to the specific `rn-perf-*` skill that owns each fix. Trigger whenever the user says "audit my RN app", "is my app optimized", "perf review", "performance health check", "find perf issues", "what's slow in my app", "check React Native performance end-to-end", or asks for an overall review against the React Native Optimization book — even without naming specific tools or skills. This is the entry-point orchestrator that surveys all 27 chapter-level optimizations plus the 4 tool-driver skills and produces a prioritized punch list.
+description: Use when the user wants a comprehensive performance audit of a React Native app — walks the full optimization checklist from Callstack's "The Ultimate Guide to React Native Optimization" (2025) across JavaScript, Native, and Bundling layers, scans the codebase for symptoms, and dispatches to the specific `rn-perf-*` skill that owns each fix. Trigger whenever the user says "audit my RN app", "is my app optimized", "perf review", "performance health check", "find perf issues", "what's slow in my app", "check React Native performance end-to-end", or asks for an overall review against the React Native Optimization book — even without naming specific tools or skills. This is the entry-point orchestrator that surveys all 29 topic skills plus the 6 operational/tool-driver skills and produces a prioritized punch list.
 ---
 
 # Full React Native Performance Audit (Orchestrator)
@@ -11,7 +11,7 @@ The user has a React Native app and wants to know what's slow, what to fix first
 Also triggers on vague-but-broad asks: "make my app faster", "perf review before launch", "find low-hanging fruit", "audit before I take on this contract", "is this RN app healthy?".
 
 ## What this skill does (single responsibility)
-**Orchestrates** a full-codebase audit and **dispatches** to the 33 specialized `rn-perf-*` skills. Detects symptoms and prioritizes findings; does **not** apply fixes itself. Each fix is delegated:
+**Orchestrates** a full-codebase audit and **dispatches** to the 35 specialized `rn-perf-*` skills. Detects symptoms and prioritizes findings; does **not** apply fixes itself. Each fix is delegated:
 
 - Detected barrel exports → invoke [[rn-perf-avoid-barrel-exports]].
 - Detected `<ScrollView>` with `.map(` rendering many items → invoke [[rn-perf-virtualized-lists]].
@@ -44,7 +44,17 @@ The book opens with measurement, not fixes. **Without numbers, optimization is g
 
 If the user has none of these, they should land before any fix attempts. Record the baseline numbers in the punch list.
 
-### Phase 2 — JavaScript layer audit (9 checks → 9 skills)
+### Shared guardrails
+
+- Follow the same loop for every finding: **Measure → Optimize → Re-measure → Validate**. If the same metric does not improve, revert or try the next candidate.
+- Check library versions before API-specific advice. Examples: FlashList v2 no longer needs `estimatedItemSize`; Reanimated v4 uses `react-native-worklets`; React Native 0.79+ already disables Android JS bundle compression by default.
+- Do not suggest `useMemo`, `useCallback`, dependency-array, or stale-closure fixes speculatively. Require a profiler result, a reproducible correctness bug, or a concrete stale read path.
+- Treat component tree depth and component count as supporting context only. They are not substitutes for commit duration, FPS, TTI, memory, or size evidence.
+- When a device automation or evidence-capture tool is available, use it for screenshots, logs, traces, and repeatable scenario evidence.
+- Review shell commands before running them, prefer pinned tooling in CI/docs, and do not pipe remote install scripts directly into a shell.
+- Treat new packages, native SDKs, Re.Pack plugins, and remote code chunks as supply-chain changes that need provenance and version review.
+
+### Phase 2 — JavaScript layer audit (10 checks → 10 skills)
 
 For each row, run the detection, capture evidence, and dispatch to the listed skill if a hit is found.
 
@@ -59,34 +69,36 @@ For each row, run the detection, capture evidence, and dispatch to the listed sk
 | 7 | Typing/slider lag because heavy consumer updates synchronously | Look for filter-by-input or chart-by-input patterns where the consumer is on the same render path as the input | [[rn-perf-concurrent-react]] |
 | 8 | Hand-written `useMemo`/`useCallback`/`React.memo` everywhere | `grep -rnE "useMemo\\(\|useCallback\\(\|React\\.memo\\(" --include='*.tsx' src/ \| wc -l` — flag if very high; also check if `babel-plugin-react-compiler` is missing from `babel.config.js` | [[rn-perf-react-compiler]] |
 | 9 | JS-driven animations dropping frames | `grep -rnE "Animated\\.timing\|Animated\\.View\|Animated\\.spring" --include='*.tsx' src/` and check whether `react-native-reanimated` is installed and used | [[rn-perf-animations-reanimated]] |
+| 10 | Bottom sheet gesture/keyboard/scroll jank | `grep -rnE "@gorhom/bottom-sheet\\|BottomSheet" --include='*.tsx' --include='*.ts' src/` and inspect callbacks/scrollables/inputs | [[rn-perf-bottom-sheet]] |
 
-### Phase 3 — Native layer audit (9 checks → 9 skills)
+### Phase 3 — Native layer audit (10 checks → 10 skills)
 
 | # | Check | Detection | If found, invoke |
 |---|---|---|---|
-| 10 | About to touch native code or platform-specific bug | Triggered by any native finding below, or by user mentioning Podfile/Gradle/xcworkspace | [[rn-perf-platform-differences]] |
-| 11 | Native jank / microhangs / frozen frames on one platform | Symptom-driven: user reports "smooth on iOS, janky on Android" or vice versa | [[rn-perf-profile-native]] |
-| 12 | Native memory leaks (OOM, rotation/navigation growth) | Driven by Phase 1 if JS leak hunt came up empty, or OOM crash reports | [[rn-perf-hunt-native-memory-leaks]] |
-| 13 | No TTI instrumentation installed | `grep "react-native-performance" package.json` returns nothing | [[rn-perf-measure-tti]] |
-| 14 | Custom native modules — ownership/lifecycle review | `find . -path '*/ios/*.swift' -o -path '*/ios/*.m' -o -path '*/android/*.kt' -o -path '*/android/*.java' -not -path '*/node_modules/*'` shows local native source | [[rn-perf-native-memory-mgmt]] |
-| 15 | New Architecture threading issues — sync Turbo Module call from JS, UIKit access off main, Yoga on JS | `grep newArchEnabled=true android/gradle.properties` AND the user mentions Turbo/Fabric concerns | [[rn-perf-threading-model]] |
-| 16 | Excessive native view depth, missing flatten, `collapsable` confusion | `grep -rnE "<View>\\s*<View>\\s*<View>\\s*<View>" --include='*.tsx' src/`, plus `grep -rn collapsable src/` | [[rn-perf-view-flattening]] |
-| 17 | Web-targeted libraries shipping in RN | `grep -E '"(@formatjs/\|crypto-js\|@react-navigation/stack")' package.json` | [[rn-perf-rn-sdks-over-web]] |
-| 18 | Slow custom native modules | Owner of Phase 3.14 source + complaint about a specific module being slow | [[rn-perf-native-modules-faster]] |
+| 11 | About to touch native code or platform-specific bug | Triggered by any native finding below, or by user mentioning Podfile/Gradle/xcworkspace | [[rn-perf-platform-differences]] |
+| 12 | Native jank / microhangs / frozen frames on one platform | Symptom-driven: user reports "smooth on iOS, janky on Android" or vice versa | [[rn-perf-profile-native]] |
+| 13 | Native memory leaks (OOM, rotation/navigation growth) | Driven by Phase 1 if JS leak hunt came up empty, or OOM crash reports | [[rn-perf-hunt-native-memory-leaks]] |
+| 14 | No TTI instrumentation installed | `grep "react-native-performance" package.json` returns nothing | [[rn-perf-measure-tti]] |
+| 15 | Custom native modules — ownership/lifecycle review | `find . -path '*/ios/*.swift' -o -path '*/ios/*.m' -o -path '*/android/*.kt' -o -path '*/android/*.java' -not -path '*/node_modules/*'` shows local native source | [[rn-perf-native-memory-mgmt]] |
+| 16 | New Architecture threading issues — sync Turbo Module call from JS, UIKit access off main, Yoga on JS | `grep newArchEnabled=true android/gradle.properties` AND the user mentions Turbo/Fabric concerns | [[rn-perf-threading-model]] |
+| 17 | Excessive native view depth, missing flatten, `collapsable` confusion | `grep -rnE "<View>\\s*<View>\\s*<View>\\s*<View>" --include='*.tsx' src/`, plus `grep -rn collapsable src/` | [[rn-perf-view-flattening]] |
+| 18 | Web-targeted libraries shipping in RN | `grep -E '"(@formatjs/\|crypto-js\|@react-navigation/stack")' package.json` | [[rn-perf-rn-sdks-over-web]] |
+| 19 | Slow custom native modules | Owner of Phase 3.15 source + complaint about a specific module being slow | [[rn-perf-native-modules-faster]] |
+| 20 | Android 16 KB page-size release risk | Android app targets API 35+, Play Console reports 16 KB warnings, or release APK/AAB includes native `.so` files | [[rn-perf-android-16kb-alignment]] |
 
 ### Phase 4 — Bundling layer audit (9 checks → 9 skills)
 
 | # | Check | Detection | If found, invoke |
 |---|---|---|---|
-| 19 | JS bundle composition unknown | (always, see Phase 1.4) | [[rn-perf-analyze-js-bundle]] |
-| 20 | App install/download size unknown | (always, see Phase 1.5) | [[rn-perf-analyze-app-bundle]] |
-| 21 | About to add an npm dependency | Recent commits touching `package.json` with new entries | [[rn-perf-library-size]] |
-| 22 | Barrel re-export files defeating tree shaking | `find src -name 'index.ts' -o -name 'index.js' \| xargs grep -l '^export \*\|^export {.*} from' 2>/dev/null` | [[rn-perf-avoid-barrel-exports]] |
-| 23 | Metro default (no tree shaking) | No `metro-serializer-esbuild` in `metro.config.js`, no Re.Pack, no `EXPO_UNSTABLE_TREE_SHAKING` | [[rn-perf-tree-shaking]] |
-| 24 | App approaching the 200 MB Play limit or JSC-based | AAB > 150 MB, or Hermes disabled | [[rn-perf-remote-code-loading]] |
-| 25 | R8 minification/shrinking off | `grep -E "minifyEnabled\|shrinkResources" android/app/build.gradle` shows `false` or commented out | [[rn-perf-r8-android-shrink]] |
-| 26 | Assets bundled via JS `require()` instead of platform asset catalogs | `find . -name '*@2x.png' -o -name '*@3x.png' -not -path '*/node_modules/*' -not -path '*/ios/*/Images.xcassets/*'` | [[rn-perf-native-assets-folder]] |
-| 27 | Android JS bundle compressed (Hermes can't mmap) | `grep -E "noCompress\|androidResources" android/app/build.gradle` shows no `noCompress 'bundle'` | [[rn-perf-disable-bundle-compression]] |
+| 21 | JS bundle composition unknown | (always, see Phase 1.4) | [[rn-perf-analyze-js-bundle]] |
+| 22 | App install/download size unknown | (always, see Phase 1.5) | [[rn-perf-analyze-app-bundle]] |
+| 23 | About to add an npm dependency | Recent commits touching `package.json` with new entries | [[rn-perf-library-size]] |
+| 24 | Barrel re-export files defeating tree shaking | `find src -name 'index.ts' -o -name 'index.js' \| xargs grep -l '^export \*\|^export {.*} from' 2>/dev/null` | [[rn-perf-avoid-barrel-exports]] |
+| 25 | Metro default (no tree shaking) | No `metro-serializer-esbuild` in `metro.config.js`, no Re.Pack, no `EXPO_UNSTABLE_TREE_SHAKING` | [[rn-perf-tree-shaking]] |
+| 26 | App approaching the 200 MB Play limit or JSC-based | AAB > 150 MB, or Hermes disabled | [[rn-perf-remote-code-loading]] |
+| 27 | R8 minification/shrinking off | `grep -E "minifyEnabled\|shrinkResources" android/app/build.gradle` shows `false` or commented out | [[rn-perf-r8-android-shrink]] |
+| 28 | Assets bundled via JS `require()` instead of platform asset catalogs | `find . -name '*@2x.png' -o -name '*@3x.png' -not -path '*/node_modules/*' -not -path '*/ios/*/Images.xcassets/*'` | [[rn-perf-native-assets-folder]] |
+| 29 | Android JS bundle compressed (Hermes can't mmap) | `grep -E "noCompress\|androidResources" android/app/build.gradle` shows no `noCompress 'bundle'` | [[rn-perf-disable-bundle-compression]] |
 
 ### Phase 5 — Tool-driver skills (referenced as needed)
 These aren't audit checks — they're how-to skills you cite when the audit recommends a tool action:
@@ -119,7 +131,7 @@ Produce a table sorted by impact:
 - **P2** — structural refactor with clear benefit (atomic state, virtualized lists where ScrollView is used).
 - **P3** — advanced / context-specific (Re.Pack, remote code loading, custom native module rewrite).
 
-**Don't dump all 33** — pick the **top 3–5 by impact** and hand off the top P0 finding to its skill first.
+**Don't dump all 35** — pick the **top 3–5 by impact** and hand off the top P0 finding to its skill first.
 
 ## Code patterns / detection snippets
 
@@ -152,29 +164,36 @@ echo "=== Phase 2.9 — legacy Animated API ==="
 grep -rnE "Animated\.(timing|spring|View)" --include='*.tsx' src/ | head -10
 grep -E "react-native-reanimated" package.json || echo "Reanimated: NOT installed"
 
-echo "=== Phase 3.13 — TTI instrumentation ==="
+echo "=== Phase 2.10 — bottom sheet usage ==="
+grep -rnE "@gorhom/bottom-sheet|BottomSheet" --include='*.tsx' --include='*.ts' src/ | head -20
+
+echo "=== Phase 3.14 — TTI instrumentation ==="
 grep -E "react-native-performance" package.json || echo "TTI markers: NOT installed"
 
-echo "=== Phase 3.16 — deep view nesting ==="
+echo "=== Phase 3.17 — deep view nesting ==="
 grep -rnE "<View>\s*<View>\s*<View>\s*<View>" --include='*.tsx' src/ | head -5
 
-echo "=== Phase 3.17 — web-targeted libraries ==="
+echo "=== Phase 3.18 — web-targeted libraries ==="
 grep -E '"@formatjs/|crypto-js|@react-navigation/stack"' package.json
 
-echo "=== Phase 4.22 — barrel files ==="
+echo "=== Phase 3.20 — Android 16 KB alignment risk ==="
+grep -E "targetSdkVersion|compileSdk" android/app/build.gradle android/build.gradle 2>/dev/null
+find android node_modules -name "*.so" 2>/dev/null | head -20
+
+echo "=== Phase 4.24 — barrel files ==="
 find src -name "index.ts" -o -name "index.js" 2>/dev/null | xargs grep -l "^export \*\|^export {.*} from" 2>/dev/null
 
-echo "=== Phase 4.23 — tree-shaking config ==="
+echo "=== Phase 4.25 — tree-shaking config ==="
 grep -E "metro-serializer-esbuild|EXPO_UNSTABLE_TREE_SHAKING|@callstack/repack" package.json metro.config.js 2>/dev/null
 
-echo "=== Phase 4.25 — R8 / shrinking ==="
+echo "=== Phase 4.27 — R8 / shrinking ==="
 grep -E "minifyEnabled|shrinkResources" android/app/build.gradle 2>/dev/null
 
-echo "=== Phase 4.26 — multi-density assets in JS land ==="
+echo "=== Phase 4.28 — multi-density assets in JS land ==="
 find . -name '*@2x.png' -o -name '*@3x.png' 2>/dev/null \
   | grep -v node_modules | grep -v Images.xcassets | head -10
 
-echo "=== Phase 4.27 — bundle compression on Android ==="
+echo "=== Phase 4.29 — bundle compression on Android ==="
 grep -E "noCompress|androidResources" android/app/build.gradle 2>/dev/null || echo "Default (compressed)"
 ```
 
@@ -184,7 +203,7 @@ Each section corresponds to a row in the audit tables above. Feed the output int
 
 The audit is complete when:
 
-1. **All 27 book checks have a status** — `OK`, `Skip (out-of-scope)`, or `Fix → <skill-name>`.
+1. **All 29 checks have a status** — `OK`, `Skip (out-of-scope)`, or `Fix → <skill-name>`.
 2. **Phase 1 baseline numbers are recorded**: JS FPS (from Perf Monitor), TTI cold-start median, APK/IPA install size, JS bundle size. If any is missing, that's itself a P0 finding (you can't optimize what you don't measure).
 3. **Punch list exists** with at least one P0/P1 or an explicit "no findings above P2".
 4. **Top finding is handed off** — the conversation pivots to invoking the named skill (e.g., `/rn-perf-r8-android-shrink`).
@@ -194,7 +213,7 @@ The audit is complete when:
 - **RN version gating**: many checks are no-ops on old versions. Concurrent React needs ≥ 0.69 + New Arch; React Compiler is most useful on ≥ 0.78 (React 19); MMKV/Reanimated 3 want New Arch. State each gate when reporting.
 - **Expo Go**: cannot ship native-level fixes (R8, custom modules, bundle compression). Flag those findings as "requires dev-client/EAS Build" instead of P0.
 - **JSC instead of Hermes**: invalidates [[rn-perf-disable-bundle-compression]] (no mmap fast-path) and *increases* the urgency of [[rn-perf-remote-code-loading]]. Always check the engine.
-- **Don't recommend everything at once**: a 33-item backlog overwhelms. Surface the top 3–5 by impact; let the user pull more on demand.
+- **Don't recommend everything at once**: a 35-item backlog overwhelms. Surface the top 3–5 by impact; let the user pull more on demand.
 - **Symptom-driven vs proactive**: if the user came in with "typing is laggy", run Phase 2 first and prioritize [[rn-perf-uncontrolled-components]] / [[rn-perf-concurrent-react]] / [[rn-perf-profile-js-react]] before the full sweep.
 - **iOS-only or Android-only apps**: skip the other platform's bundling chapters (R8 is Android; App Thinning is iOS).
 - **Monorepo gotcha**: scan from the *app* package, not the workspace root, or the grep counts will be polluted by libraries the app doesn't ship.
@@ -204,7 +223,7 @@ The audit is complete when:
 ## References
 
 - Book: "The Ultimate Guide to React Native Optimization" (2025), Callstack — the complete optimization checklist this audit walks. TOC: Preface (p. 4) · How to Read (p. 5) · Why Performance Matters (p. 7); Part 1 JavaScript (chapters at pp. 14, 21, 24, 30, 34, 42, 46, 52, 59); Part 2 Native (pp. 67, 76, 85, 91, 99, 111, 119, 123, 128); Part 3 Bundling (pp. 142, 148, 154, 156, 159, 163, 167, 170, 175).
-- The 33 sibling `rn-perf-*` skills under `~/.claude/skills/` — see `ls ~/.claude/skills/ | grep ^rn-perf-`.
+- The 35 sibling `rn-perf-*` skills under `~/.claude/skills/` — see `ls ~/.claude/skills/ | grep ^rn-perf-`.
 
 ## Related skills
 
@@ -223,6 +242,7 @@ The audit is complete when:
 - [[rn-perf-concurrent-react]] — `useDeferredValue`, `useTransition`, `Suspense`
 - [[rn-perf-react-compiler]] — Babel plugin + ESLint plugin
 - [[rn-perf-animations-reanimated]] — worklets, `useAnimatedStyle`, `InteractionManager`
+- [[rn-perf-bottom-sheet]] — sheet gestures, scrollables, inputs, and modal setup
 
 **Phase 3 — Native layer**
 - [[rn-perf-platform-differences]] — iOS vs Android mental map
@@ -233,6 +253,7 @@ The audit is complete when:
 - [[rn-perf-view-flattening]] — `collapsable`, native view hierarchy
 - [[rn-perf-rn-sdks-over-web]] — MMKV, Hermes Intl, Native Stack
 - [[rn-perf-native-modules-faster]] — Turbo / Nitro / C++ modules
+- [[rn-perf-android-16kb-alignment]] — Google Play 16 KB page-size compatibility
 
 **Phase 4 — Bundling layer**
 - [[rn-perf-library-size]] — bundlephobia / pkg-size / Import Cost

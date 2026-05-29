@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Animations Reanimated"
+  short_description: "React Native Animations Reanimated workflow"
+  default_prompt: "Use $rn-perf-animations-reanimated to apply React Native Animations Reanimated guidance."

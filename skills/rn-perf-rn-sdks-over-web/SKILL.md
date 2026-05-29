@@ -11,27 +11,34 @@ The app pulls `@formatjs/intl-*` polyfills, `crypto-js`, JS-rendered stack/tab n
 ## What this skill does (single responsibility)
 Audits a React Native dependency tree for web-targeted libraries and swaps them for dedicated RN equivalents in four categories: Intl polyfills, crypto, navigation, and JS-rendered UI primitives. Does **not** cover general bundle analysis (see [[rn-perf-analyze-js-bundle]]), per-library size measurement (see [[rn-perf-library-size]]), or tree shaking (see [[rn-perf-tree-shaking]]).
 
-## Hermes Intl support (as of January 2025)
+## Hermes Intl support (verify by API and method)
 
-| Intl API | Hermes support |
-|---|---|
-| `Intl.Collator` | yes |
-| `Intl.DateTimeFormat` | yes |
-| `Intl.NumberFormat` | yes |
-| `Intl.getCanonicalLocales()` | yes |
-| `Intl.supportedValuesOf()` | yes |
-| `Intl.ListFormat` | no |
-| `Intl.DisplayNames` | no |
-| `Intl.Locale` | no |
-| `Intl.RelativeTimeFormat` | no |
-| `Intl.Segmenter` | no |
-| `Intl.PluralRules` | no |
+Hermes Intl support changes over time and can vary by platform. Treat this table as a starting point, then verify the exact constructor and method usage in the app before deleting a polyfill.
 
-Re-check this table on each Hermes upgrade — expect more "yes" entries over time. **Removing supported polyfills alone shaves ≥430 kB from the JS bundle** (book example), and because they're loaded eagerly at app entry, this directly improves TTI.
+| Intl API or method | Hermes support | Keep polyfill when... |
+|---|---|---|
+| `Intl.Collator` | yes | Locale or option behavior fails in the target app/runtime |
+| `Intl.DateTimeFormat` | yes | The app needs unsupported options in its supported locales |
+| `Intl.NumberFormat` | partial | The app uses unsupported options or `formatToParts()` on Hermes/iOS |
+| `Intl.getCanonicalLocales()` | yes | Runtime probe fails |
+| `Intl.supportedValuesOf()` | yes | Runtime probe fails |
+| `Intl.Locale` | no | The app constructs or inspects `Intl.Locale` |
+| `Intl.PluralRules` | no | The app uses plural category selection |
+| `Intl.RelativeTimeFormat` | no | The app formats "3 minutes ago" style strings |
+| `Intl.DisplayNames` | no | The app localizes region/language/currency display names |
+| `Intl.ListFormat` | no | The app formats natural-language lists |
+| `Intl.Segmenter` | no | The app segments words, graphemes, or sentences |
+
+Re-check on each Hermes and React Native upgrade. **Removing supported polyfills alone can shave ≥430 kB from the JS bundle** (book example), and because they're commonly loaded at app entry, this directly improves TTI.
 
 ## Workflow
 1. **Audit** dependencies with `npm ls` / `yarn list` (and [[rn-perf-analyze-js-bundle]] for byte impact).
-2. **Intl polyfills** — cross-reference `@formatjs/intl-*` imports against the table above. Delete each that maps to a Hermes-supported API. Also audit locale-data files (`@formatjs/intl-X/locale-data/Y`) — they're often the biggest contributors.
+2. **Intl polyfills** — search for both imports and method usage:
+   ```
+   grep -R "@formatjs/intl-" src index.* package.json
+   grep -R "Intl\\." src --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx'
+   ```
+   Delete a polyfill only when the exact constructor and methods the app uses are covered by the target Hermes runtime on both platforms. Also audit locale-data files (`@formatjs/intl-X/locale-data/Y`) — they're often the biggest contributors.
 3. **Crypto** — `grep -R "crypto-js"`. Replace with `react-native-quick-crypto` (C++ via JSI, up to **58× faster** than `crypto-js`). Essential for CSPRNG (e.g., Web3 wallet seed) — `Math.random()` cannot provide cryptographic randomness; you need OS entropy via native APIs.
 4. **Navigation** — find `createStackNavigator` usages and migrate to `@react-navigation/native-stack` (backed by `react-native-screens`, uses iOS `UINavigationController` / Android `Fragment`, runs on UI thread). Same for `createBottomTabNavigator` → `@bottom-tabs/react-navigation`.
 5. **UI primitives** — replace JS-rendered date pickers, dropdowns, action sheets, menus, sliders with native-backed equivalents (Zeego, RN Date Picker, RN Slider).
@@ -39,13 +46,11 @@ Re-check this table on each Hermes upgrade — expect more "yes" entries over ti
 
 ## Code patterns
 
-Remove supported Intl polyfills (after January 2025):
+Remove only supported Intl polyfills after method-level audit:
 
 ```diff
 -import '@formatjs/intl-getcanonicallocales/polyfill';
  import '@formatjs/intl-locale/polyfill';
--import '@formatjs/intl-numberformat/polyfill';
--import '@formatjs/intl-numberformat/locale-data/en';
 -import '@formatjs/intl-datetimeformat/polyfill';
 -import '@formatjs/intl-datetimeformat/locale-data/en';
  import '@formatjs/intl-pluralrules/polyfill';
@@ -53,6 +58,27 @@ Remove supported Intl polyfills (after January 2025):
  import '@formatjs/intl-relativetimeformat/polyfill';
  import '@formatjs/intl-relativetimeformat/locale-data/en';
  import '@formatjs/intl-displaynames/polyfill';
+```
+
+Keep NumberFormat when the app uses `formatToParts()` on Hermes/iOS:
+
+```tsx
+const usesParts = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+}).formatToParts(123.45);
+```
+
+Runtime probe before deleting a polyfill:
+
+```ts
+const intlProbe = {
+  dateTimeFormat: typeof Intl.DateTimeFormat === 'function',
+  numberFormatParts:
+    typeof Intl.NumberFormat === 'function' &&
+    typeof Intl.NumberFormat.prototype.formatToParts === 'function',
+  pluralRules: typeof Intl.PluralRules === 'function',
+};
 ```
 
 Use the now-built-in Intl directly:
@@ -102,6 +128,7 @@ const MyTabs = createNativeBottomTabNavigator({
 
 ## Edge cases & gotchas
 - **Hermes Intl support evolves.** Re-check the support table on each Hermes upgrade.
+- **Constructor-level support is not enough.** Check the exact methods used by the app, especially `Intl.NumberFormat.prototype.formatToParts()` on Hermes/iOS.
 - **Native Stack has a slightly different API** vs JS Stack (`headerLargeTitle`, gesture options). Some screens need adjustments.
 - **Native Tabs look different per-platform** (large iOS, Material Android). That's the point — if your design system demands identical look on both, native tabs are not for you.
 - **Zeego on web** falls back to Radix UI — keep that in mind for cross-platform projects.
@@ -111,6 +138,7 @@ const MyTabs = createNativeBottomTabNavigator({
 
 ## References
 - Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Use Dedicated React Native SDKs Over Web", pp. 123–127
+- Hermes Intl docs: https://hermesengine.dev/docs/intl
 - react-native-quick-crypto: https://github.com/margelo/react-native-quick-crypto
 - react-native-screens: https://github.com/software-mansion/react-native-screens
 - @react-navigation/native-stack: https://reactnavigation.org/docs/native-stack-navigator

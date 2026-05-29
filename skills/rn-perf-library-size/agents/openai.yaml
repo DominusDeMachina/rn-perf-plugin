@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Library Size"
+  short_description: "React Native Library Size workflow"
+  default_prompt: "Use $rn-perf-library-size to apply React Native Library Size guidance."

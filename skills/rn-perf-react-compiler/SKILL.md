@@ -1,50 +1,53 @@
 ---
 name: rn-perf-react-compiler
-description: Use when the user wants to install, configure, debug, or verify the React Compiler in a React Native project — or mentions `babel-plugin-react-compiler`, `eslint-plugin-react-compiler`, `react-compiler-runtime`, `useMemoCache`, the "Memo ✨" badge in DevTools, the React Compiler Playground, removing manual `React.memo`/`useMemo`/`useCallback`, or wants automatic memoization instead of hand-memoizing. Trigger whenever the user says "I have too many `useMemo`s" or "can I get rid of these `useCallback`s", even if they don't name the compiler.
+description: Use when the user wants to install, configure, debug, or verify the React Compiler in a React Native project — or mentions `babel-plugin-react-compiler`, `eslint-plugin-react-hooks` compiler rules, `react-compiler-runtime`, `useMemoCache`, the "Memo ✨" badge in DevTools, the React Compiler Playground, removing manual `React.memo`/`useMemo`/`useCallback`, or wants automatic memoization instead of hand-memoizing. Trigger whenever the user says "I have too many `useMemo`s" or "can I get rid of these `useCallback`s", even if they don't name the compiler.
 ---
 
 # React Compiler Setup for Automatic Memoization
 
 ## When to use
-The user is hand-memoizing with `React.memo`/`useMemo`/`useCallback` and wants the compiler to do it instead, or is hitting cascading re-renders and would rather automate the fix than refactor to atomic state. Beta as of January 2025 — already used in production at Meta and shipping in Expensify.
+The user is hand-memoizing with `React.memo`/`useMemo`/`useCallback` and wants the compiler to do it instead, or is hitting cascading re-renders and would rather automate the fix than refactor to atomic state. Check the current React and React Native versions first; React Compiler is designed for React 19, with React 17/18 support through the compiler runtime and `target` option.
 
 ## What this skill does (single responsibility)
-Installs and configures `babel-plugin-react-compiler` and `eslint-plugin-react-compiler`, sets `target` correctly for React 18 vs React 19, scopes incremental adoption with `sources`, overrides the bundled `react-devtools` so the `Memo ✨` badge appears, and verifies the optimization in DevTools. Out of scope: manual memoization patterns (these go away once the compiler is in), atomic state refactors ([[rn-perf-atomic-state-management]]), and runtime profiling ([[rn-perf-profile-js-react]]).
+Installs and configures `babel-plugin-react-compiler` and the compiler rules in `eslint-plugin-react-hooks`, sets `target` correctly for React 17/18/19, scopes incremental adoption with `sources`, verifies the `Memo ✨` badge in DevTools, and measures the optimization. Out of scope: manual memoization patterns (these go away once the compiler is in), atomic state refactors ([[rn-perf-atomic-state-management]]), and runtime profiling ([[rn-perf-profile-js-react]]).
 
 ## Workflow
 1. **Install the ESLint plugin first** (safe, no runtime change):
    ```
-   npm install -D eslint-plugin-react-compiler@beta
+   npm install -D eslint-plugin-react-hooks@latest
    ```
-   Add `'react-compiler/react-compiler': 'error'` to your ESLint config. The compiler bails silently on files that break Rules of React, so this is the only way to see what it skipped.
+   Enable the `recommended-latest` preset or equivalent compiler lint rules. The compiler safely skips files that break Rules of React, so lint is how you see what it skipped.
 2. **Fix the violations the linter surfaces.** Class components, mutated props, conditional hooks, etc. — the compiler will not optimize these (book p. 53).
 3. **Install the Babel plugin:**
    ```
-   npm install -D babel-plugin-react-compiler@beta
+   npm install -D babel-plugin-react-compiler@latest
    ```
-   For projects on React < 19 (RN < 0.78), also install `react-compiler-runtime@beta` and set `target: '18'`.
-4. **Configure `babel.config.js`** with the correct `target`.
+   For projects on React 17 or 18, also install `react-compiler-runtime@latest` and set `target` to the matching major version.
+4. **Configure `babel.config.js`** with the correct `target`. The compiler Babel plugin must run before other transforms.
 5. **Adopt incrementally with `sources`.** If the compiler chokes on certain files, scope it down rather than disabling globally — beta software regressing one screen shouldn't block the whole app (book p. 54).
-6. **Override the bundled `react-devtools` to ≥ 6.0.1** in `package.json` so DevTools displays `Memo ✨` badges. RN ships its own version, so you have to force the override (book p. 58).
-7. **Verify in DevTools.** Open the Components panel; optimized components show `Memo ✨`. Missing badges with a successful build usually mean the DevTools version is too old.
+6. **Make sure DevTools is new enough** to display `Memo ✨` badges. React Native may bundle its own DevTools version, so upgrade or override only if the badge is absent despite a clean compiler build.
+7. **Verify in DevTools.** Open the Components panel; optimized components show `Memo ✨`.
 8. **Re-profile.** Use the Profiler (see [[rn-perf-profile-js-react]]) on the same scenario you measured before. Cascading re-renders should narrow to truly-affected components.
+
+## Review guardrails
+- Do not add React Compiler only because a grep finds many `useMemo`, `useCallback`, or `React.memo` calls. Use the count as a signal, then confirm with Profiler evidence or a clear maintainability goal.
+- Do not remove manual memoization until the compiler is configured, lint is clean, DevTools shows optimization, and before/after profiling shows no regression.
+- Do not suggest dependency-array changes unless there is a reproducible correctness issue or profiler evidence that the value is causing wasted work.
+- If the compiler skips files, narrow `sources` and fix Rules-of-React violations instead of disabling the compiler globally.
 
 ## Code patterns
 
-ESLint config (book p. 53):
+ESLint config:
 
 ```js
-import reactCompiler from 'eslint-plugin-react-compiler';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
-  {
-    plugins: { 'react-compiler': reactCompiler },
-    rules: { 'react-compiler/react-compiler': 'error' },
-  },
+  reactHooks.configs.flat['recommended-latest'],
 ];
 ```
 
-Babel config — set `target: '18'` for RN < 0.78, `'19'` otherwise (book p. 53):
+Babel config — set `target` to the React major version when below React 19:
 
 ```js
 const ReactCompilerConfig = {
@@ -53,7 +56,10 @@ const ReactCompilerConfig = {
 
 module.exports = function () {
   return {
-    plugins: [['babel-plugin-react-compiler', ReactCompilerConfig]],
+    plugins: [
+      ['babel-plugin-react-compiler', ReactCompilerConfig],
+      // other plugins after the compiler
+    ],
   };
 };
 ```
@@ -95,7 +101,7 @@ function useMemoCache(n) {
 ```
 
 ## Verification
-- **`Memo ✨` badge in DevTools Components panel** for optimized components (book p. 57). If absent, override `react-devtools` to ≥ 6.0.1 in `package.json`.
+- **`Memo ✨` badge in DevTools Components panel** for optimized components. If absent, check DevTools version, compiler config, and lint skips.
 - **Profiler before/after** on the same interaction — cascading re-renders should narrow to truly-affected components (the book's Expensify screenshot, p. 57, shows a deep flamegraph collapse to a sparse one).
 - **Quantitative target:** a few-percent improvement on Time-to-Interactive (Expensify saw 4.3% on Chat Finder TTI, book p. 56). Apps already heavily memoized see less.
 - **Build doesn't break.** If the compiler fails on a file, narrow `sources`; don't disable globally.
@@ -103,15 +109,18 @@ function useMemoCache(n) {
 
 ## Edge cases & gotchas
 - **Shallow comparison only.** "Be careful when using objects or arrays as props. If their reference changes, they will be treated as new values" (book p. 55). Pass primitives or stable references.
-- **The compiler silently skips non-conformant code.** Class components, code that breaks Rules of React, outdated patterns get no optimization (book p. 53). The ESLint plugin is the only way to spot the gap.
-- **Missing `Memo ✨` despite a clean build** usually means the bundled `react-devtools` is too old. Override in `package.json` (book p. 58).
-- **Don't strip manual memoization yet** (book p. 56). Wait for the official "stable + remove your memos" guidance; the linter is expected to flag the ones that became redundant.
+- **The compiler skips non-conformant code.** Class components, code that breaks Rules of React, and outdated patterns get no optimization. The ESLint plugin is the way to spot the gap.
+- **Missing `Memo ✨` despite a clean build** can mean DevTools is too old, the compiler skipped the component, or the file is outside `sources`.
+- **Do not strip manual memoization blindly.** Remove it only after the compiler is working and profiling shows no regression.
 - **React Native specific** (book p. 58): "React Compiler is built for universal React but primarily tested in web environments. Enabling it in React Native might require additional steps to ensure `Memo ✨` badges appear correctly."
 
 ## References
 - Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "React Compiler", pp. 52–58
+- React Compiler installation: https://react.dev/learn/react-compiler/installation
+- React Compiler configuration: https://react.dev/reference/react-compiler/configuration
+- React Compiler `target`: https://react.dev/reference/react-compiler/target
 - `babel-plugin-react-compiler` — https://www.npmjs.com/package/babel-plugin-react-compiler
-- `eslint-plugin-react-compiler` — https://www.npmjs.com/package/eslint-plugin-react-compiler
+- `eslint-plugin-react-hooks` — https://www.npmjs.com/package/eslint-plugin-react-hooks
 - `react-compiler-runtime` (React 17/18 polyfill) — https://www.npmjs.com/package/react-compiler-runtime
 - React Compiler Playground — https://playground.react.dev/
 

@@ -1,6 +1,6 @@
 ---
 name: rn-perf-virtualized-lists
-description: Use when a React Native list scrolls slowly, mounts slowly with many items, shows blank cells during scroll, or the user mentions FlatList, FlashList, VirtualizedList, Legend List, ScrollView with mapped children, getItemLayout, or estimatedItemSize. Trigger whenever the user asks "why is my list slow?", is choosing between list libraries, or has a ScrollView rendering > 20 items — even without explicit mention of virtualization.
+description: Use when a React Native list scrolls slowly, mounts slowly with many items, shows blank cells during scroll, or the user mentions FlatList, FlashList, VirtualizedList, Legend List, ScrollView with mapped children, getItemLayout, or estimatedItemSize. Trigger whenever the user asks "why is my list slow?", is choosing between list libraries, or has a ScrollView rendering more than 20 items — even without explicit mention of virtualization.
 ---
 
 # Pick and Configure Virtualized Lists (FlatList / FlashList / Legend List)
@@ -13,14 +13,17 @@ Selects and configures the right virtualized list — `FlatList`, `FlashList`, `
 
 ## Workflow
 1. **Confirm a list problem.** Open Perf Monitor (see [[rn-perf-measure-js-fps]]); watch JS FPS during mount and scroll. If FPS dips, proceed.
-2. **Audit current code.** Look for `<ScrollView>` with mapped children, or `FlatList` without `keyExtractor` / `getItemLayout`.
+2. **Audit current code and library versions.** Look for `<ScrollView>` with mapped children, or `FlatList` without `keyExtractor` / `getItemLayout`. If `@shopify/flash-list` is installed, check its major version before recommending props:
+   ```
+   node -p "require('./package.json').dependencies?.['@shopify/flash-list'] || require('./package.json').devDependencies?.['@shopify/flash-list']"
+   ```
 3. **Decision tree:**
    - `ScrollView` + mapped children + > ~20 items → migrate to **`FlatList`**.
    - `FlatList` with **fixed-height rows** → add `getItemLayout` (skips measurement).
-   - `FlatList` with complex rows, variable heights, blanks while scrolling, or > 500 items → migrate to **`FlashList`** with `estimatedItemSize`.
+   - `FlatList` with complex rows, variable heights, blanks while scrolling, or > 500 items → migrate to **`FlashList`**. For FlashList v1, provide `estimatedItemSize`; for FlashList v2+, do not add deprecated size-estimate props.
    - On the New Architecture with appetite for a beta → evaluate **`@legendapp/list`** behind a feature flag.
    - Highly custom layouts (masonry, sticky-grid hybrids) where none of the above fit → drop down to **`VirtualizedList`**.
-4. **Configure required props.** Always set `data`, `renderItem`, `keyExtractor`. For fixed heights, add `getItemLayout`. For `FlashList`, supply `estimatedItemSize` (average row height — e.g., 50/100/150 → 100).
+4. **Configure required props.** Always set `data`, `renderItem`, `keyExtractor`. For fixed-height `FlatList`, add `getItemLayout`. For FlashList v1, supply `estimatedItemSize` (average row height — e.g., 50/100/150 → 100). For FlashList v2+, focus on stable keys, lightweight row components, and `getItemType` for heterogeneous rows.
 5. **Keep rows light.** Memoize the row component; never put side effects in the render path; avoid inline objects in `renderItem`. The book is explicit: "It's crucial to keep list items as light as possible, without any side effects" (p. 39–40).
 6. **Measure again** on the same device/scenario; persist before/after Flashlight (Android) or Perf Monitor numbers in the PR.
 
@@ -61,7 +64,7 @@ const getItemLayout = (_, index) => ({
 />
 ```
 
-`FlatList` → `FlashList` (book p. 39):
+`FlatList` → `FlashList` v1 (book p. 39):
 
 ```tsx
 import { FlashList } from '@shopify/flash-list';
@@ -73,23 +76,40 @@ import { FlashList } from '@shopify/flash-list';
 />
 ```
 
+`FlatList` → `FlashList` v2+:
+
+```tsx
+import { FlashList } from '@shopify/flash-list';
+
+const getItemType = (item) => item.type;
+
+<FlashList
+  data={items}
+  renderItem={renderItem}
+  keyExtractor={(item) => item.id}
+  getItemType={getItemType}
+/>
+```
+
 ## Verification
 - **FPS:** scroll end-to-end on a **low-end Android** device with Perf Monitor open. Target sustained ≥ 58 fps JS.
 - **Flashlight score:** record before/after; the book's example moved a real list from **25/100 → 78/100** swapping `FlatList` for `FlashList` (p. 40).
 - **CPU:** "Average CPU usage" and "High CPU usage" in Flashlight should drop (book example: 226.8% / 19.1 s → 127.1% / 1.7 s).
-- **No blank cells** during fast scroll. If blanks appear, raise `estimatedItemSize` or lighten the row.
+- **No blank cells** during fast scroll. On FlashList v1, tune `estimatedItemSize`; on FlashList v2+, inspect row cost, stable keys, and item types instead.
 
 ## Edge cases & gotchas
-- **`FlashList` warns without `estimatedItemSize`.** Don't ship without it — the developer-chosen value beats the runtime estimate (book p. 40).
+- **FlashList v2 no longer reads size estimates.** `estimatedItemSize`, `estimatedListSize`, and `estimatedFirstItemOffset` are deprecated in v2. Do not flag them as missing unless the app is on FlashList v1.
 - **Item recycling means render-path side effects leak across rows.** With `FlashList`, the same component instance gets new `data`. Never start animations or set up subscriptions in render; always `useEffect` keyed off `item.id`.
 - **`FlatList` keeps unmounted items in its window buffer.** Uses more memory than `FlashList` and "eventually slows the list down" (book p. 39).
 - **`getItemLayout` lies for variable-height rows.** Scrollbar position and `scrollToIndex` will land at the wrong offset. Compute conservatively or omit it.
 - **Legend List is 1.0-beta.** Use only with a fallback path; gate behind a feature flag in prod.
 - **Always measure with the engine you ship** (Hermes vs JSC) and on a low-end Android. Emulator and high-end iPhone hide the bottleneck.
+- **Do not infer a list fix from component count alone.** Treat tree depth and item count as signals; require FPS, Profiler, or user-visible blank-cell evidence before recommending a migration.
 
 ## References
 - Book: "The Ultimate Guide to React Native Optimization" (2025), "Higher-Order Specialized Components", pp. 34–41.
 - FlashList: https://shopify.github.io/flash-list/
+- FlashList v2 changes: https://shopify.github.io/flash-list/docs/v2-changes/
 - Legend List: https://legendapp.com/open-source/list/
 
 ## Related skills
@@ -99,3 +119,4 @@ import { FlashList } from '@shopify/flash-list';
 - [[rn-perf-atomic-state-management]] — per-row state without re-rendering the whole list.
 - [[rn-perf-concurrent-react]] — `useDeferredValue` for filter inputs feeding the list.
 - [[rn-perf-flashlight-android]] — quantify the improvement in CI.
+- [[rn-perf-bottom-sheet]] — bottom-sheet scrollables and FlashList integration.

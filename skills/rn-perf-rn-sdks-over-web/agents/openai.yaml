@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: RN SDKs over Web"
+  short_description: "React Native RN SDKs over Web workflow"
+  default_prompt: "Use $rn-perf-rn-sdks-over-web to apply React Native RN SDKs over Web guidance."

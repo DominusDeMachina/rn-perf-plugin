@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Analyze JS Bundle"
+  short_description: "React Native Analyze JS Bundle workflow"
+  default_prompt: "Use $rn-perf-analyze-js-bundle to apply React Native Analyze JS Bundle guidance."

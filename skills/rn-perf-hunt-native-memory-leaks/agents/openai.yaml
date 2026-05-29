@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Hunt Native Memory Leaks"
+  short_description: "React Native Hunt Native Memory Leaks workflow"
+  default_prompt: "Use $rn-perf-hunt-native-memory-leaks to apply React Native Hunt Native Memory Leaks guidance."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: React Compiler"
+  short_description: "React Native React Compiler workflow"
+  default_prompt: "Use $rn-perf-react-compiler to apply React Native React Compiler guidance."

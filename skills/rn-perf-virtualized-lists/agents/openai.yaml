@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Virtualized Lists"
+  short_description: "React Native Virtualized Lists workflow"
+  default_prompt: "Use $rn-perf-virtualized-lists to apply React Native Virtualized Lists guidance."

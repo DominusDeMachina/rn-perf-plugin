@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Platform Differences"
+  short_description: "React Native Platform Differences workflow"
+  default_prompt: "Use $rn-perf-platform-differences to apply React Native Platform Differences guidance."

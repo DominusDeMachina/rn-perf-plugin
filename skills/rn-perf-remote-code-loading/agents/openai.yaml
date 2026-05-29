@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Remote Code Loading"
+  short_description: "React Native Remote Code Loading workflow"
+  default_prompt: "Use $rn-perf-remote-code-loading to apply React Native Remote Code Loading guidance."

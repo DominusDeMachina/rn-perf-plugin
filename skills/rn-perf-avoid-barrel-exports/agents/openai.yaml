@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Avoid Barrel Exports"
+  short_description: "React Native Avoid Barrel Exports workflow"
+  default_prompt: "Use $rn-perf-avoid-barrel-exports to apply React Native Avoid Barrel Exports guidance."

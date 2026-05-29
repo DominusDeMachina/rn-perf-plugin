@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Full App Test"
+  short_description: "React Native Full App Test workflow"
+  default_prompt: "Use $rn-perf-full-app-test to apply React Native Full App Test guidance."

@@ -19,6 +19,12 @@ Refactors a global store (Context, Redux, or a single oversized `useState`) into
 5. **Atomize hottest stores first.** Don't migrate the whole app at once; cold stores aren't worth the churn.
 6. **Verify in Profiler.** Re-record the same interaction; unrelated components should no longer appear in the commit.
 
+## Review guardrails
+- Require Profiler evidence before recommending a state-library migration. A large Context or Redux store is a signal; unrelated rerenders during the target interaction are the proof.
+- Try React Compiler first when the code follows the Rules of React and the goal is mostly memoization. Atomization is best when the state model itself needs bottom-up subscriptions.
+- Scope the first refactor to the hottest store or interaction. Do not migrate the whole app for a speculative performance win.
+- Do not call a stale closure or selector dependency bug unless you can point to the stale read path or a reproduction.
+
 ## Code patterns
 
 The anti-pattern — one component holds `filter` and `todos`; toggling a todo re-renders the `FilterMenuItem`s even though they don't depend on todos (book p. 42–43):

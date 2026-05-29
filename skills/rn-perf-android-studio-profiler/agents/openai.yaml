@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Android Studio Profiler"
+  short_description: "React Native Android Studio Profiler workflow"
+  default_prompt: "Use $rn-perf-android-studio-profiler to apply React Native Android Studio Profiler guidance."

@@ -1,0 +1,147 @@
+description = "Use when a React Native app has bottom sheet jank, dropped frames, keyboard/input issues, or excessive re-renders around `@gorhom/bottom-sheet`, `BottomSheet`, `BottomSheetModal..."
+prompt = '''
+# RN Perf Skill: rn-perf-bottom-sheet
+
+Use when: Use when a React Native app has bottom sheet jank, dropped frames, keyboard/input issues, or excessive re-renders around `@gorhom/bottom-sheet`, `BottomSheet`, `BottomSheetModal`, `BottomSheetScrollView`, `BottomSheetFlatList`, `BottomSheetTextInput`, `animatedIndex`, `animatedPosition`, `react-native-true-sheet`, or sheet gesture/scroll coordination. Keeps gesture-driven state on the UI thread, picks the right sheet/scrollable/input components, and routes measured fixes to Reanimated, list, state, and input skills.
+
+Follow the skill instructions below. If another RN Perf skill is referenced as `[[skill-name]]`, use that skill's command when it is available, or apply the referenced skill from the package source if you have it loaded.
+
+Gemini CLI appends the user's raw command after this prompt when arguments are provided.
+
+# Bottom Sheet Performance
+
+## When to use
+The user is implementing or debugging a bottom sheet and reports janky open/close gestures, lag while dragging, scroll conflicts, keyboard overlap, expensive sheet subtree re-renders, or confusion between `BottomSheet` and `BottomSheetModal`.
+
+## What this skill does (single responsibility)
+Optimizes bottom sheets by keeping gesture/scroll-driven visual state on UI-thread shared values, using the bottom-sheet library's integrated scrollables and inputs, and limiting React state updates during sheet animation. Out of scope: general animation fundamentals ([[rn-perf-animations-reanimated]]), row virtualization ([[rn-perf-virtualized-lists]]), uncontrolled form migration ([[rn-perf-uncontrolled-components]]), and broad React render profiling ([[rn-perf-profile-js-react]]).
+
+## Workflow
+1. **Check versions and architecture.**
+   - Confirm `@gorhom/bottom-sheet`, `react-native-reanimated`, `react-native-gesture-handler`, and FlashList versions from `package.json` or lockfile.
+   - `@gorhom/bottom-sheet` v5 is built around Reanimated v3. If the app uses Reanimated v4 / `react-native-worklets`, validate sheet gestures on real devices before recommending an upgrade.
+   - If the app is on New Architecture/Fabric and needs native-feeling standard sheets more than custom Reanimated behavior, evaluate `@lodev09/react-native-true-sheet`.
+2. **Measure the actual interaction.** Use [[rn-perf-measure-js-fps]] or [[rn-perf-flashlight-android]] while opening, dragging, scrolling, typing, and dismissing the sheet. If the issue is rerenders, record [[rn-perf-profile-js-react]] for the sheet subtree.
+3. **Move visual sheet state off React state.** Replace `setState` in `onAnimate`, `onChange`, or scroll callbacks with `animatedIndex` / `animatedPosition` shared values and `useAnimatedStyle`.
+4. **Use the library scrollables.** Inside `@gorhom/bottom-sheet`, prefer `BottomSheetScrollView`, `BottomSheetFlatList`, and `BottomSheetSectionList` over raw React Native scrollables. For FlashList v2, create a sheet-compatible scroll component with `useBottomSheetScrollableCreator` and pass it via `renderScrollComponent`.
+5. **Separate side effects from continuous gestures.** Use `onChange` for analytics or discrete snap completion work. Use `animatedIndex` / `animatedPosition` for continuous UI.
+6. **Fix keyboard handling with sheet-aware inputs.** Prefer `BottomSheetTextInput`; if a custom input is required, copy the library's focus/blur handling so keyboard coordination is preserved.
+7. **Verify on device.** Re-run the same measurement and keep before/after FPS, Profiler commits, or a short screen recording in the PR.
+
+## Code patterns
+
+Avoid React state in high-frequency sheet animation callbacks:
+
+```tsx
+const [expanded, setExpanded] = useState(false);
+
+const handleAnimate = useCallback((_fromIndex, toIndex) => {
+  setExpanded(toIndex > 0);
+}, []);
+
+<BottomSheet onAnimate={handleAnimate}>
+  <ExpensiveContent expanded={expanded} />
+</BottomSheet>
+```
+
+Use shared values for visual state:
+
+```tsx
+const animatedIndex = useSharedValue(0);
+
+const backdropStyle = useAnimatedStyle(() => ({
+  opacity: withTiming(animatedIndex.value > 0 ? 0.5 : 0),
+}));
+
+<BottomSheet animatedIndex={animatedIndex}>
+  <ExpensiveContent />
+</BottomSheet>
+<Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, backdropStyle]} />
+```
+
+Use sheet-aware scrollables:
+
+```tsx
+import {
+  BottomSheetFlatList,
+  BottomSheetScrollView,
+  BottomSheetSectionList,
+} from '@gorhom/bottom-sheet';
+```
+
+FlashList v2 inside a bottom sheet:
+
+```tsx
+import { useBottomSheetScrollableCreator } from '@gorhom/bottom-sheet';
+import { FlashList } from '@shopify/flash-list';
+
+const BottomSheetFlashListScrollComponent = useBottomSheetScrollableCreator();
+
+<BottomSheet snapPoints={snapPoints} enableDynamicSizing={false}>
+  <FlashList
+    data={data}
+    keyExtractor={(item) => item.id}
+    renderItem={renderItem}
+    renderScrollComponent={BottomSheetFlashListScrollComponent}
+  />
+</BottomSheet>
+```
+
+Modal setup:
+
+```tsx
+import { BottomSheetModal, BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+
+<BottomSheetModalProvider>
+  <BottomSheetModal ref={modalRef} snapPoints={snapPoints} enableDismissOnClose>
+    <Content />
+  </BottomSheetModal>
+</BottomSheetModalProvider>
+```
+
+Keyboard-aware input:
+
+```tsx
+<BottomSheet
+  snapPoints={snapPoints}
+  keyboardBehavior="interactive"
+  keyboardBlurBehavior="restore"
+  enableBlurKeyboardOnGesture
+>
+  <BottomSheetTextInput placeholder="Search" />
+</BottomSheet>
+```
+
+## Verification
+- FPS during open, drag, scroll, and dismiss stays at target refresh rate on a low-end Android device.
+- React Profiler shows the sheet subtree no longer re-rendering continuously while dragging.
+- No gesture conflicts when scrolling content inside the sheet.
+- Keyboard opens and dismisses without covering the active input on iOS and Android.
+- For `BottomSheetModal`, presentation and dismissal work through navigation transitions and overlays.
+
+## Edge cases & gotchas
+- `onChange` fires after snap completion; do not use it for continuous position tracking.
+- `onAnimate` can run repeatedly as the sheet retargets; keep it cheap and avoid driving large React subtrees from it.
+- Hidden always-mounted sheet children can still receive touches. Set `pointerEvents`, `accessibilityElementsHidden`, and `importantForAccessibility` based on the bridged visible state.
+- `enableDynamicSizing` defaults can insert a content-height snap point and shift snap indexes. Set `enableDynamicSizing={false}` when index stability matters.
+- `BottomSheetScrollView` ignores `scrollEventThrottle`; move scroll-driven visuals to Reanimated scroll handlers instead of trying to tune JS scroll frequency.
+- Raw React Native `ScrollView` / `FlatList` inside a sheet often breaks gesture coordination. Use sheet-provided wrappers or `renderScrollComponent`.
+- `BottomSheetTextInput` contains keyboard integration. Custom inputs need equivalent focus/blur handling.
+- Reanimated v4 and `react-native-worklets` require explicit project validation with bottom-sheet versions; do not assume v3 snippets are drop-in for v4.
+
+## References
+- Callstack agent skill: `js-bottomsheet.md` in `callstackincubator/agent-skills`
+- @gorhom Bottom Sheet docs: https://gorhom.dev/react-native-bottom-sheet/
+- BottomSheetTextInput docs: https://gorhom.dev/react-native-bottom-sheet/components/bottomsheettextinput
+- Bottom Sheet v5 release notes: https://gorhom.dev/react-native-bottom-sheet/blog/bottom-sheet-v5
+- react-native-true-sheet: https://github.com/lodev09/react-native-true-sheet
+
+## Related skills
+- [[rn-perf-animations-reanimated]] - SharedValue, worklet, and UI-thread fundamentals
+- [[rn-perf-virtualized-lists]] - FlatList, FlashList, and Legend List tuning inside sheet content
+- [[rn-perf-uncontrolled-components]] - form input lag inside sheets
+- [[rn-perf-atomic-state-management]] - splitting context/state that rerenders sheet subtrees
+- [[rn-perf-profile-js-react]] - measure sheet subtree rerenders
+- [[rn-perf-measure-js-fps]] - measure gesture and scroll FPS
+- [[rn-perf-view-flattening]] - native child-count issues in sheet-adjacent native components
+'''

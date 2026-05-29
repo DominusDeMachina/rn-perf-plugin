@@ -1,0 +1,42 @@
+{
+  "name": "rn-perf-plugin",
+  "version": "0.1.0",
+  "description": "React Native performance toolkit for Codex, Claude Code, and Gemini CLI.",
+  "author": {
+    "name": "Gennadiy Furduy",
+    "email": "Gfurduy@labforty.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "react-native",
+    "performance",
+    "profiling",
+    "codex",
+    "claude-code",
+    "gemini-cli"
+  ],
+  "bin": {
+    "rn-perf-plugin": "./bin/rn-perf-plugin.js"
+  },
+  "scripts": {
+    "build": "node scripts/build-gemini-extension.js",
+    "check": "node scripts/check-package.js",
+    "prepack": "npm run build && npm run check"
+  },
+  "files": [
+    ".codex-plugin/",
+    ".claude-plugin/",
+    "bin/",
+    "docs/",
+    "gemini-extension/",
+    "marketplaces/",
+    "scripts/",
+    "skills/",
+    "LICENSE",
+    "POWER.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

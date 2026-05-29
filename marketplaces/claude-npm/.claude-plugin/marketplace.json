@@ -1,0 +1,34 @@
+{
+  "name": "rn-perf-marketplace",
+  "description": "Marketplace entry for installing the RN Perf Claude Code plugin from npm.",
+  "owner": {
+    "name": "Gennadiy Furduy",
+    "email": "Gfurduy@labforty.com"
+  },
+  "plugins": [
+    {
+      "name": "rn-perf",
+      "displayName": "RN Perf",
+      "description": "React Native performance toolkit: 36 skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, startup, app-size optimization, and Android release compatibility.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Gennadiy Furduy",
+        "email": "Gfurduy@labforty.com"
+      },
+      "license": "MIT",
+      "keywords": [
+        "react-native",
+        "performance",
+        "profiling",
+        "mobile",
+        "bundle-size"
+      ],
+      "category": "Developer Tools",
+      "source": {
+        "source": "npm",
+        "package": "rn-perf-plugin",
+        "version": "0.1.0"
+      }
+    }
+  ]
+}

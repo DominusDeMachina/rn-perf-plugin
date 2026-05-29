@@ -1,0 +1,82 @@
+description = "Use when the user is about to add an npm dependency to a React Native app and wants to estimate its bundle cost first — runs through bundlephobia.com, pkg-size.dev, and the Impo..."
+prompt = '''
+# RN Perf Skill: rn-perf-library-size
+
+Use when: Use when the user is about to add an npm dependency to a React Native app and wants to estimate its bundle cost first — runs through bundlephobia.com, pkg-size.dev, and the Import Cost VS Code/Cursor extension. Trigger whenever the user mentions bundlephobia, pkg-size, Import Cost, "how big is this package", "should I use moment or date-fns", "is uuid heavier than nanoid", evaluating an npm dep, comparing two libraries, or asks "what does this library cost?" — even without an explicit ask to measure.
+
+Follow the skill instructions below. If another RN Perf skill is referenced as `[[skill-name]]`, use that skill's command when it is available, or apply the referenced skill from the package source if you have it loaded.
+
+Gemini CLI appends the user's raw command after this prompt when arguments are provided.
+
+# Estimate Library Size Before Adding It
+
+## When to use
+The user is evaluating whether to add an npm dependency and wants a pre-install estimate of its JS bundle cost. Also triggered by tool names: bundlephobia, pkg-size, Import Cost.
+
+## What this skill does (single responsibility)
+The **pre-flight check** before `yarn add <library>`. Quickly estimates the **JS bundle cost** of a third-party package using bundlephobia, pkg-size, and the in-editor Import Cost extension. It does **not** measure native binary cost of native modules (see [[rn-perf-analyze-app-bundle]]) and does **not** inspect bundles after the fact (see [[rn-perf-analyze-js-bundle]]).
+
+## Workflow
+1. Before running `yarn add <library>`, open https://bundlephobia.com and type the package name.
+2. Inspect:
+   - **Minified + gzipped** — the number to compare across libraries.
+   - **Tree-shakeable** badge — green is significantly better; you only ship what you import.
+   - **Side-effect free** badge — required for aggressive tree shaking.
+   - **Dependencies count** — a "small" library with 30 transitive deps is not small.
+3. If bundlephobia rejects the package or is down, fall back to https://pkg-size.dev.
+4. For ongoing in-editor feedback, install the **Import Cost** extension (`wix.vscode-import-cost`) in VS Code or Cursor. It annotates each import line with size.
+5. If the candidate is too big, search for slimmer alternatives — `date-fns` over `moment`, `nanoid` over `uuid`, native `Intl` over heavyweight i18n libs.
+6. After adding the library, verify the actual delta with [[rn-perf-analyze-js-bundle]] — bundlephobia is a Webpack approximation, not the truth for Metro.
+
+## Code patterns
+
+Example Import Cost annotation (rendered as a trailing comment by the extension):
+
+```ts
+import React, { useMemo, memo } from 'react'; // 6.9k (gzipped: 2.7k)
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+```
+
+Example bundlephobia interpretation (`react-native-paper@5.13.1`):
+
+- Minified: **247.9 kB**
+- Minified + gzipped: **65.3 kB**
+- Download time (Slow 3G): 1.31 s
+- Download time (Emerging 4G): 75 ms
+- Tree-shakeable: yes
+- Side-effect free: yes
+- Dependencies: 3
+
+Optional npm-script wrapper to capture size for CI logging:
+
+```json
+"scripts": {
+  "size:check": "npx pkg-size"
+}
+```
+
+## Verification
+- For any new dependency PR, document the **bundlephobia minified+gzipped** number in the PR description.
+- After merge, re-run [[rn-perf-analyze-js-bundle]] and confirm the actual delta is within ~2× of bundlephobia's number. The gap is platform-shaking, RN-specific Babel transforms, and unused exports.
+- If the delta is dramatically larger, suspect a barrel import or a missing tree-shake — see [[rn-perf-avoid-barrel-exports]] / [[rn-perf-tree-shaking]].
+
+## Edge cases & gotchas
+- **Libraries with native code** (`react-native-reanimated`, `react-native-mmkv`, etc.) are not fully representable here. bundlephobia/pkg-size only show the JS shim cost; the native binary impact is invisible. Measure with Ruler/App Thinning via [[rn-perf-analyze-app-bundle]].
+- **Import Cost fails silently** for packages that won't bundle with Webpack — typical for any RN package with a `react-native.config.js` or native modules. A missing annotation is *not* "zero cost".
+- **bundlephobia caches aggressively** — a package that just shipped a leaner version may show the old number for hours.
+- The "tree-shakeable" badge is necessary but not sufficient: your bundler also has to support tree shaking, and **Metro doesn't by default** (see [[rn-perf-tree-shaking]]).
+- `pkg-size.dev` reports include transitive deps, which can balloon the number for utility packages — read the "N modules" line carefully.
+- All three tools assume **Webpack-style bundling**. Treat the numbers as a ceiling for the JS portion in a RN context.
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Determine True Size of Third-Party Libraries", pp. 154–155.
+- bundlephobia: https://bundlephobia.com
+- pkg-size: https://pkg-size.dev
+- Import Cost (VS Code/Cursor extension): https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost
+
+## Related skills
+- [[rn-perf-analyze-js-bundle]] — verify the post-install actual cost.
+- [[rn-perf-tree-shaking]] — what enables you to pay only for what you import.
+- [[rn-perf-avoid-barrel-exports]] — most common reason actual cost dwarfs the bundlephobia estimate.
+- [[rn-perf-analyze-app-bundle]] — the missing dimension here: native-code cost.
+'''

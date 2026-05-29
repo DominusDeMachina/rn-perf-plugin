@@ -1,0 +1,123 @@
+description = "Use when the user wants to visualize the JavaScript bundle composition of a React Native app — runs source-map-explorer, Expo Atlas, Rspack `--analyze`, Statoscope/bundle-stats,..."
+prompt = '''
+# RN Perf Skill: rn-perf-analyze-js-bundle
+
+Use when: Use when the user wants to visualize the JavaScript bundle composition of a React Native app — runs source-map-explorer, Expo Atlas, Rspack `--analyze`, Statoscope/bundle-stats, or Rsdoctor to find which modules dominate Metro/Rspack output. Trigger whenever the user mentions large JS bundle, source-map-explorer, Expo Atlas, Rsdoctor, Statoscope, bundle-stats, webpack-bundle-analyzer, "why is my JS bundle so big", treemap, or wants to know which package is bloating the JS output — even without an explicit ask to "analyze".
+
+Follow the skill instructions below. If another RN Perf skill is referenced as `[[skill-name]]`, use that skill's command when it is available, or apply the referenced skill from the package source if you have it loaded.
+
+Gemini CLI appends the user's raw command after this prompt when arguments are provided.
+
+# Analyze the JavaScript Bundle
+
+## When to use
+The user suspects the JS bundle is too large, TTI is slow because too much JS runs on init, or they want to see a treemap of which libraries dominate the bundle. Also triggered by tool names: source-map-explorer, Expo Atlas, Rsdoctor, Statoscope, `rspack --analyze`.
+
+## What this skill does (single responsibility)
+Visualises and inspects the **JS bundle** to find what's making it bigger than necessary. This skill is strictly about the JavaScript artifact Metro/Rspack emits. It does **not** cover native APK/IPA install size (see [[rn-perf-analyze-app-bundle]]), preflight library-size estimation (see [[rn-perf-library-size]]), or the fixes themselves (see [[rn-perf-tree-shaking]], [[rn-perf-avoid-barrel-exports]]).
+
+## Workflow
+1. Pick the analyser that matches the bundler:
+   - **Metro** (default RN, default Expo) → `source-map-explorer` or **Expo Atlas**.
+   - **Re.Pack** (Webpack/Rspack) → `rspack build --analyze`, then **bundle-stats/Statoscope** for diffing or **Rsdoctor** for the richest view.
+2. Produce a **production**, **minified** bundle. For `source-map-explorer`, also emit a source map. Dev bundles include HMR scaffolding and the require runtime and will mislead you.
+3. Open the treemap. Read top-down (`node_modules` → library → file) and look for:
+   - A single library taking >5% of the bundle.
+   - Duplicate packages (multiple versions of the same lib).
+   - Dev-only code leaking into prod (`__DEV__` blocks that didn't strip).
+   - Platform-conditional code that wasn't platform-shaken on the opposite platform.
+4. For Re.Pack: commit a baseline `stats.json`, then diff it against subsequent builds with `bundle-stats` to catch regressions in CI.
+5. Feed findings into a fix skill: [[rn-perf-tree-shaking]], [[rn-perf-avoid-barrel-exports]], or [[rn-perf-library-size]].
+
+## Code patterns
+
+Generate the bundle + source map for `source-map-explorer`:
+
+```
+npx react-native bundle \
+  --entry-file index.js \
+  --bundle-output output.js \
+  --platform ios \
+  --sourcemap-output output.js.map \
+  --dev false \
+  --minify true
+```
+
+Run `source-map-explorer` (the `--no-border-checks` flag is mandatory because Metro emits invalid column/line mappings):
+
+```
+npx source-map-explorer output.js --no-border-checks
+```
+
+Run Expo Atlas (works in non-Expo projects via `expo-atlas-without-expo`):
+
+```
+EXPO_UNSTABLE_ATLAS=true npx expo start --no-dev
+# or
+EXPO_UNSTABLE_ATLAS=true npx expo export
+
+npx expo-atlas
+```
+
+Re.Pack (Rspack) one-shot analysis (uses `webpack-bundle-analyzer` under the hood):
+
+```
+rspack build --analyze
+```
+
+Re.Pack with `stats.json` for `bundle-stats` / Statoscope diffs:
+
+```
+npx react-native bundle \
+  --platform android \
+  --entry-file index.js \
+  --dev false \
+  --minify true \
+  --json stats.json
+
+npx bundle-stats --html --json stats.json
+```
+
+Rsdoctor plugin in `rspack.config.js`:
+
+```js
+const { RsdoctorRspackPlugin } = require('@rsdoctor/rspack-plugin');
+
+module.exports = {
+  plugins: [
+    process.env.RSDOCTOR &&
+      new RsdoctorRspackPlugin({
+        // plugin options
+      }),
+  ].filter(Boolean),
+};
+```
+
+## Verification
+- Treemap renders and is readable. Expect up to ~30% information loss in `source-map-explorer` due to Metro's invalid column/line mappings — Expo Atlas is more accurate.
+- After applying a fix (e.g., `date-fns` submodule imports), regenerate the bundle and confirm the targeted library shrinks in the treemap.
+- For CI: commit a baseline `stats.json` and fail the build on >5% regression to a tracked library.
+
+## Edge cases & gotchas
+- `source-map-explorer` loses up to **30%** of mappings on Metro output. Use Expo Atlas when full fidelity matters.
+- Always analyse **prod-minified** bundles — dev bundles include the Metro require runtime, HMR scaffolding, and unminified strings.
+- The biggest box in a fresh RN app's treemap is almost always **react-native itself** (~70–80% of the Libraries chunk). That is expected — focus on what *you* added.
+- Hermes bytecode (HBC) size differs from minified JS on disk. Book benchmark: 15.5 MB minified → ~21 MB HBC, with very different runtime perf characteristics.
+- Libraries that ship a Babel plugin (e.g., React Native Paper) may show unused exports as still present **before** the plugin runs — analyse the final post-Babel bundle.
+- Hermes moves load and parse work to **build time**, so web-style "initial download" obsessing doesn't map directly to RN. What still matters: bytecode size, JS on the init path, and eager Turbo Module initialisation.
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "How to Analyze JS Bundle Size", pp. 142–147.
+- source-map-explorer: https://www.npmjs.com/package/source-map-explorer
+- Expo Atlas: https://github.com/expo/expo-atlas
+- Rsdoctor: https://rsdoctor.dev
+- bundle-stats: https://www.npmjs.com/package/bundle-stats
+- Statoscope: https://statoscope.tech
+
+## Related skills
+- [[rn-perf-analyze-app-bundle]] — sibling skill for native APK/IPA install size.
+- [[rn-perf-tree-shaking]] — first fix once a heavy library is identified.
+- [[rn-perf-avoid-barrel-exports]] — classic source of "I imported one thing and got everything".
+- [[rn-perf-library-size]] — pre-flight check before adding a dependency.
+- [[rn-perf-measure-tti]] — the metric this skill ultimately moves.
+'''

@@ -1,2 +1,4 @@
 .DS_Store
 .in_use/
+node_modules/
+*.tgz

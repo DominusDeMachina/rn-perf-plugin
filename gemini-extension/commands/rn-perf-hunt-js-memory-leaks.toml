@@ -1,0 +1,92 @@
+description = "Use when memory usage grows over time in a React Native app, the OS kills the app in background, OOM crashes are observed, or the user mentions Hermes, Hades GC, heap snapshot, ..."
+prompt = '''
+# RN Perf Skill: rn-perf-hunt-js-memory-leaks
+
+Use when: Use when memory usage grows over time in a React Native app, the OS kills the app in background, OOM crashes are observed, or the user mentions Hermes, Hades GC, heap snapshot, DevTools Memory tab, retainers, leaked listeners, or uncleared intervals/timeouts. Trigger whenever symptoms include "memory keeps growing", "app gets killed", "memory leak", or any reference to the Memory tab — even without an explicit ask to hunt leaks.
+
+Follow the skill instructions below. If another RN Perf skill is referenced as `[[skill-name]]`, use that skill's command when it is available, or apply the referenced skill from the package source if you have it loaded.
+
+Gemini CLI appends the user's raw command after this prompt when arguments are provided.
+
+# Hunt JS-Side Memory Leaks (Hermes + DevTools Memory)
+
+## When to use
+Memory grows monotonically across a known cycle (open screen → close → re-open), the OS background-kills the app, or OOMs appear in crash reports. Also triggers on mention of heap snapshots, retainers, Hades GC, or the DevTools Memory tab.
+
+## What this skill does (single responsibility)
+Locates and root-causes JavaScript-side leaks against the **Hermes** runtime using the React Native DevTools **Memory** panel (Chrome DevTools Memory over CDP). Out of scope: native-side leaks ([[rn-perf-hunt-native-memory-leaks]]), the native memory model ([[rn-perf-native-memory-mgmt]]), render perf ([[rn-perf-profile-js-react]]), and FPS ([[rn-perf-measure-js-fps]]). This skill finds the JS leak; native and perf are siblings.
+
+## Workflow
+1. Run a **release-flavor** dev build so optimizations match prod while DevTools can still attach.
+2. Open React Native DevTools → **Memory** panel.
+3. Choose technique based on what you know:
+
+**Two-snapshot diff** — when you have a known cycle (recommended starting point):
+   - Wait for the app to settle. Click "Collect garbage" (trash icon).
+   - Take **Snapshot 1**.
+   - Run the cycle **3–5 times** to amplify the leak.
+   - Force GC again. Take **Snapshot 2**.
+   - Switch the view from "Summary" to **"Comparison"**, filter `# Delta > 0`.
+   - Survivors are leak candidates. Click one → look at **"Retainers"** — that chain reveals what's holding it.
+
+**Allocation instrumentation on timeline** — when you don't know the cycle yet, but can reproduce a suspect interaction:
+   - Click "Allocation instrumentation on timeline" → Start → reproduce → Stop.
+   - Blue bars = still-allocated. Hover for stack trace; that's where the survivor was born.
+
+**Allocation sampling** — when reproducing takes minutes of normal use:
+   - Click "Allocation sampling" → Start → use app normally → Stop.
+   - Aggregated allocations by function; top entries with no expected cleanup point at the leak.
+
+4. Patch the leak — typical fix is cleanup in a `useEffect` return.
+5. Verify: rerun the same procedure; the previously leaking type's `# Delta` should be **0 or negative**.
+
+## Code patterns
+
+Forgotten listener — the canonical RN leak:
+
+```tsx
+// LEAK: subscription survives unmount
+useEffect(() => {
+  DeviceEventEmitter.addListener('myEvent', handler);
+}, []);
+
+// FIX
+useEffect(() => {
+  const sub = DeviceEventEmitter.addListener('myEvent', handler);
+  return () => sub.remove();
+}, []);
+```
+
+Uncleared interval — same shape, just as common:
+
+```tsx
+useEffect(() => {
+  const id = setInterval(tick, 1000);
+  return () => clearInterval(id);
+}, []);
+```
+
+In the Comparison table, sort by **# Delta** desc and ignore React internal types (`FiberNode`, `ReactElement`) unless they grow unboundedly across many cycles — focus on app-domain types and large strings.
+
+## Verification
+- Re-run the three- or two-snapshot procedure post-fix. `# Delta` for the leaking type is **0 or negative**.
+- Long-running soak: 50 cycles of the previously leaky interaction; total heap size within ±5% of baseline.
+- Optional CI step: scripted scenario asserting heap size stays under a threshold.
+
+## Edge cases & gotchas
+- **Always click "Collect garbage" before each snapshot.** Otherwise unreachable-but-not-yet-collected objects pollute the diff.
+- Hermes does not report some optimized-out closures. If a retainer chain ends in nothing useful, relax optimizations for diagnosis only.
+- `useMemo` / `useCallback` cache survivors are normal; only flag if they grow per-cycle.
+- **`console.log` retains its arguments.** Instrumented logs left in production can be the leak themselves.
+- Hades is concurrent — most collection isn't stop-the-world, but heap pressure still hurts TTI and perf. A leak that doesn't crash still costs FPS.
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Hunt JS Memory Leaks", pp. 27–35.
+- Chrome DevTools Memory docs: https://developer.chrome.com/docs/devtools/memory-problems/
+
+## Related skills
+- [[rn-perf-react-native-devtools]] — tool setup and panel navigation.
+- [[rn-perf-hunt-native-memory-leaks]] — sibling for the native side.
+- [[rn-perf-atomic-state-management]] — large global stores are a common "held by accident" source.
+- [[rn-perf-profile-js-react]] — when the symptom is slow renders rather than growing memory.
+'''

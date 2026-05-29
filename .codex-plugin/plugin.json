@@ -1,6 +1,6 @@
 {
   "name": "rn-perf",
-  "version": "0.1.0+codex.20260529065132",
+  "version": "0.1.0",
   "description": "React Native performance toolkit: 36 Codex skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, startup, app-size optimization, and Android release compatibility.",
   "author": {
     "name": "Gennadiy Furduy",

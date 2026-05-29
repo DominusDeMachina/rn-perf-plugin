@@ -98,7 +98,19 @@ function copyCodexPlugin(destination, force) {
   ensureWritableDestination(destination, force);
   fs.mkdirSync(destination, { recursive: true });
 
-  for (const entry of [".codex-plugin", "skills", "docs", "LICENSE", "POWER.md", "README.md", "package.json"]) {
+  for (const entry of [
+    ".codex-plugin",
+    "skills",
+    "docs",
+    "CLAUDE_README.md",
+    "CODEX_README.md",
+    "GEMINI_README.md",
+    "INSTALL.md",
+    "LICENSE",
+    "POWER.md",
+    "README.md",
+    "package.json"
+  ]) {
     const source = path.join(packageRoot, entry);
     if (fs.existsSync(source)) {
       fs.cpSync(source, path.join(destination, entry), {

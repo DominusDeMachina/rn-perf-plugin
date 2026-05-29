@@ -1,0 +1,9 @@
+{
+  "name": "rn-perf",
+  "version": "0.1.0",
+  "description": "React Native performance toolkit: 33 skills covering profiling, memory, bundling, native modules, animations, lists, and startup — based on Callstack's Ultimate Guide to React Native Optimization (2025).",
+  "author": {
+    "name": "Gennadiy Furduy",
+    "email": "Gfurduy@labforty.com"
+  }
+}

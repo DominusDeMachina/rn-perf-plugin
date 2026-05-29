@@ -1,0 +1,138 @@
+---
+name: rn-perf-perfetto-traces
+description: Use when the user is capturing, opening, or sharing a Perfetto / system trace for a React Native app — uploading a `.perfetto-trace` to `ui.perfetto.dev`, recording via `adb shell perfetto`, navigating per-CPU lanes, pinning `mqt_v_js` / `mqt_v_native` / `main`, drag-selecting an "Android Missed Frames" region, or running SQL queries against the trace processor. Trigger whenever the user mentions Perfetto, `ui.perfetto.dev`, `.perfetto-trace`, system trace, "share a trace", `traceconv`, "trace SQL", Android Missed Frames, `surfaceflinger`, or wants to correlate frame drops with thread activity at the OS level.
+---
+
+# Perfetto traces (driver's manual)
+
+## When to use
+The user needs to capture, open, navigate, or share a Perfetto / system trace — when Android Studio's bundled flame graph is "good enough but not deep enough" and they want per-CPU lanes, SQL querying, or trace-file sharing across machines.
+
+## What this skill does (single responsibility)
+Covers driving Perfetto as a tool — recording a `.perfetto-trace`, loading it in `ui.perfetto.dev`, slicing by process/thread, correlating frame drops, and running SQL queries. Does NOT cover the full Android profiler suite (see [[rn-perf-android-studio-profiler]]) or what to do about threading bugs you find (see [[rn-perf-threading-model]] and [[rn-perf-profile-native]]).
+
+## Workflow
+
+### Capture
+Three paths, in increasing fidelity:
+
+1. **From Android Studio Profiler** (see [[rn-perf-android-studio-profiler]]): Tasks → **Capture System Activities** → Start → reproduce → Stop → right-click recording → Export → `.perfetto-trace`.
+2. **From `adb` directly** (no Android Studio):
+   ```bash
+   adb shell perfetto -o /data/misc/perfetto-traces/trace.perfetto-trace \
+     -t 10s -b 32mb \
+     sched freq idle am wm gfx view binder_driver hal dalvik camera input res memory
+   adb pull /data/misc/perfetto-traces/trace.perfetto-trace ~/Desktop/
+   ```
+3. **In-browser**: `ui.perfetto.dev` → left rail → **Record new trace** → connects via WebUSB/ADB-over-WebUSB → choose Targets + Tracing Modes → save to disk.
+
+### Open and navigate
+1. Open `https://ui.perfetto.dev` in Chrome (Chrome is the recommended target; Firefox works).
+2. Left rail → **Open trace file** → pick the `.perfetto-trace`, or drag-drop onto the UI.
+3. Timeline loads: per-CPU lanes (Cpu 0 – Cpu 7) at top, process lanes grouped by package below.
+4. Search box (`/` key) — type a process name (e.g. `com.sampleapp`) to jump.
+5. Navigate: **W/S** zoom, **A/D** pan, or `Cmd +` / `Cmd -`. Click a slice to see duration, name, and arguments in the bottom details pane.
+6. Expand a process group to see thread tracks. Click the pin icon to lock a thread visible while scrolling.
+
+### Correlate frame drops with thread activity
+1. Look at the **Android Missed Frames** track (near `surfaceflinger`). Red blocks = missed frame deadlines.
+2. Drag-select a red block — the selection becomes the time window.
+3. Inspect lanes beneath in that window:
+   - `mqt_v_js` busy → JS caused the drop → see [[rn-perf-profile-js-react]].
+   - `mqt_v_native` busy → Turbo Module work → see [[rn-perf-threading-model]].
+   - `main` busy → native rendering / Yoga / mounting → see [[rn-perf-profile-native]] and [[rn-perf-view-flattening]].
+
+### Slice by process/thread
+- Hide unrelated processes: command palette (`Cmd+P`) → "Filter processes" → keep only `com.sampleapp` and `surfaceflinger`.
+- Compare two threads: pin both; vertical scroll keeps the timeline base shared.
+
+### Query with SQL
+1. Left rail → **Query (SQL)**.
+2. Example — longest slices on the JS thread:
+   ```sql
+   SELECT name, ts, dur
+   FROM slice
+   WHERE thread_name = 'mqt_v_js'
+   ORDER BY dur DESC
+   LIMIT 20;
+   ```
+3. Click a row → timeline jumps to that slice.
+
+### Share
+- "Share" in the left rail uploads to `storage.googleapis.com/perfetto-ui-data/` (anonymous; URL valid ~14 days). Treat traces as containing sensitive data — process names, package names, timings — before sharing publicly.
+- Alternative: zip the `.perfetto-trace`; drop in Slack/Drive; receivers drag-drop into `ui.perfetto.dev`.
+
+## Code/command patterns
+
+CI-friendly host script:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+DEVICE=$(adb get-serialno)
+OUT="trace-$(date +%Y%m%d-%H%M%S).perfetto-trace"
+adb -s "$DEVICE" shell perfetto \
+  -o /data/misc/perfetto-traces/run.perfetto-trace \
+  -t 15s -b 64mb \
+  sched freq idle gfx view input am wm binder_driver hal dalvik memory \
+  --app com.sampleapp
+adb -s "$DEVICE" pull /data/misc/perfetto-traces/run.perfetto-trace "$OUT"
+```
+
+Custom Android trace points (appear as named slices):
+
+```kotlin
+import android.os.Trace
+
+fun onProductsLoaded(products: List<Product>) {
+  Trace.beginSection("ProductList:hydrate")
+  try { productAdapter.submitList(products) } finally { Trace.endSection() }
+}
+```
+
+Custom JS trace points (Hermes integrates with the system tracer in Profile builds):
+
+```ts
+performance.mark('hydrate:start');
+hydrateStore();
+performance.mark('hydrate:end');
+performance.measure('hydrate', 'hydrate:start', 'hydrate:end');
+```
+
+Three RN-specific lanes that matter:
+- `mqt_v_js` — Hermes JS thread (Android).
+- `mqt_v_native` — Turbo Modules / native modules thread.
+- `com.apple.main-thread` — iOS UI thread when reading Apple-emitted system traces.
+
+## Verification
+- The loaded trace title (top-left) should show the filename and a size matching the file on disk.
+- An RN trace should contain `mqt_v_js`, `mqt_v_native`, and `main` lanes under the `com.sampleapp` group. Missing `mqt_v_js` = non-Hermes build.
+- Run the example SQL query — should return up to 10 rows ordered by duration.
+- Share link round-trip: open the returned URL in Incognito — the trace must load identically.
+
+## Edge cases & gotchas
+- File sizes are huge: 30-second captures hit 200–500 MB. Chrome will use 2–4 GB RAM. Prefer 10–15 s windows.
+- Browser memory pressure: Perfetto warns above ~2 GB. Close other tabs.
+- Sharing uploads to Google's CDN — anonymous but world-readable if the URL is shared. For enterprise apps, share the file directly.
+- iOS doesn't natively produce `.perfetto-trace`. Keep iOS workflows in [[rn-perf-xcode-instruments]].
+- Symbol names may be obfuscated after R8/ProGuard. Use a debug or profileable build for legible frames.
+- Categories matter: omitting `gfx`, `view`, or `am` removes the Android Missed Frames lane. Use the recommended baseline set above.
+- WebUSB device picker sometimes fails on macOS due to permission prompts. Quit Chrome, re-attach USB, relaunch.
+- Time alignment: Perfetto timestamps are monotonic since boot. To correlate with Logcat, pin a known traced event and offset.
+- "Open with legacy UI" is for old systrace HTML files (`about:tracing` format). Skip it for modern traces.
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile Native Parts of React Native", p. 84.
+- Book: Libraries acknowledgements, p. 180.
+- Perfetto: https://perfetto.dev/docs/
+- Perfetto Android quickstart: https://perfetto.dev/docs/quickstart/android-tracing
+- Perfetto UI guide: https://perfetto.dev/docs/visualization/perfetto-ui
+- Trace processor (SQL): https://perfetto.dev/docs/analysis/trace-processor
+
+## Related skills
+- [[rn-perf-android-studio-profiler]] — primary capture tool on Android.
+- [[rn-perf-xcode-instruments]] — iOS counterpart; iOS traces stay in Instruments.
+- [[rn-perf-threading-model]] — interpret `mqt_v_js` / `mqt_v_native` / `main` busy patterns.
+- [[rn-perf-profile-native]] — action what you find on the main thread.
+- [[rn-perf-profile-js-react]] — action what you find on `mqt_v_js`.
+- [[rn-perf-measure-tti]] — Perfetto excels at cold-start phase measurement against `nativeAppStart` / `runJSBundleEnd`.

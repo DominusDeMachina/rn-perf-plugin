@@ -1,0 +1,63 @@
+---
+name: rn-perf-profile-js-react
+description: Use when the user wants to find slow React renders, expensive components, or hot JS functions in a React Native app — profiles React render cost via React Native DevTools' React Profiler and arbitrary JS execution via the JS Profiler flamegraph. Trigger whenever the user mentions slow screens, jank, expensive re-renders, "why did this render", actualDuration, React Profiler, JS Profiler, CPU flamegraph, or asks "why is my app slow?" — even if they don't explicitly ask for profiling.
+---
+
+# Profile JS and React Render Cost (React Native DevTools)
+
+## When to use
+A user reports a screen feels sluggish, a known interaction stutters, or they suspect expensive re-renders — and they want to find the cause rather than guess. Also triggers on direct mention of React Profiler, JS Profiler, "why did this render", or React Native DevTools.
+
+## What this skill does (single responsibility)
+Drives the React Native DevTools **Components**, **Profiler**, and **Performance** panels to measure (a) React commit cost and (b) raw JS execution cost on the Hermes JS thread. Out of scope: sustained FPS measurement (see [[rn-perf-measure-js-fps]]), memory leaks (see [[rn-perf-hunt-js-memory-leaks]]), and anything on the native/UI thread (see [[rn-perf-profile-native]]). This skill finds the bottleneck; sibling fix-skills resolve it.
+
+## Workflow
+1. **Build release-flavor.** Dev builds add 2–10× overhead that distorts measurements. Run `npx react-native run-android --mode=release` or launch a release scheme in Xcode. At minimum ensure `__DEV__ === false`.
+2. **Open React Native DevTools.** Press `j` in the Metro CLI, or use the dev menu → "Open DevTools". DevTools attaches to Hermes via the Chrome DevTools Protocol — device and host must be on the same LAN.
+3. **For a render perf problem:**
+   - **Components** panel → gear icon → enable "Highlight updates when components render". Reproduce the interaction; cascades of green flashes indicate re-render storms.
+   - **Profiler** panel → record → reproduce → stop. Sort commits by duration descending; widest bars are the expensive commits.
+   - Click an expensive commit, read "Why did this render?" — typical causes: new object/array prop each render, parent re-render, context value change.
+4. **For a JS execution problem:**
+   - **Performance** panel → record → reproduce → stop. Switch to **Bottom-Up**; the function with highest **self time** is the hot one.
+   - Cross-check against the React commit lane in the timeline — does the hot function correlate with a render? If yes, fix is upstream in React; if no, it's pure JS work.
+5. **Save the profile**, make the fix, re-record on the same release build / device, and compare actualDuration deltas.
+
+## Code patterns
+Lightweight inline instrumentation when you want a heuristic without DevTools attached. Use sparingly — leave out of production:
+
+```tsx
+import { Profiler } from 'react';
+
+<Profiler
+  id="ProductList"
+  onRender={(id, phase, actualDuration) => {
+    if (actualDuration > 16) {
+      console.warn(`[perf] ${id} (${phase}) took ${actualDuration.toFixed(1)}ms`);
+    }
+  }}
+>
+  <ProductList />
+</Profiler>
+```
+
+## Verification
+Save a baseline `.cpuprofile`, apply the fix, re-record on the **same release build** and **same low-end device**. Targeted commit's "Actual duration" should drop ≥30% or fall under 16 ms. For JS hotspots, the function's self-time should drop below 1–2 ms or leave the top 10. Improvements measured in dev or on a simulator are not real.
+
+## Edge cases & gotchas
+- DevTools won't attach over cellular — device and host must share a LAN.
+- `__DEV__` adds 2–10× overhead; numbers are useful for *relative* comparison only.
+- The React Profiler measures **commit time**, not native paint. A fast commit can still drop frames if Yoga layout or native mounting is slow → see [[rn-perf-profile-native]].
+- Hermes inlines small functions; the flamegraph may show fewer frames than the source. Read with that in mind.
+- DevTools only fully attaches to Hermes — JSC support is partial.
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile JS and React Code", pp. 14–19.
+- React Native DevTools: https://reactnative.dev/docs/react-native-devtools
+
+## Related skills
+- [[rn-perf-react-native-devtools]] — tool-driving skill (setup, panel navigation, save/load `.cpuprofile`).
+- [[rn-perf-measure-js-fps]] — sustained FPS rather than single-commit timing.
+- [[rn-perf-concurrent-react]] — common fix when many commits collide.
+- [[rn-perf-react-compiler]] — common fix for "new object/array prop" cascades.
+- [[rn-perf-hunt-js-memory-leaks]] — when the symptom is growing memory rather than slow renders.

@@ -1,0 +1,110 @@
+---
+name: rn-perf-atomic-state-management
+description: Use when the user wants to scope re-renders by splitting a monolithic global store into atomic state — refactor React Native code to Jotai, Zustand, or Recoil so only subscribed components re-render. Trigger whenever the user mentions Redux/Context perf issues, "whole app re-renders", a single big useState holding unrelated slices, selector boilerplate, `useAtom`/`useAtomValue`/`useSetAtom`, or compares Zustand vs Jotai vs Recoil — even if they don't explicitly say "atomic state".
+---
+
+# Atomic State Management for React Native Re-render Scoping
+
+## When to use
+The React Native DevTools Profiler shows unrelated components lighting up on every global state change, or the user is fighting cascading re-renders from a Context/Redux store holding many unrelated slices (e.g. `{ filter, todos, user }` in one place).
+
+## What this skill does (single responsibility)
+Refactors a global store (Context, Redux, or a single oversized `useState`) into atomic state with Jotai (default), Zustand, or Recoil so re-renders scope to the components that actually subscribe to the changed atom. Out of scope: manual memoization patterns (covered by [[rn-perf-react-compiler]] which automates them), uncontrolled inputs for form perf ([[rn-perf-uncontrolled-components]]), and list virtualization ([[rn-perf-virtualized-lists]]).
+
+## Workflow
+1. **Confirm the symptom in DevTools Profiler.** Record one round of the offending interaction (e.g. toggle a todo). If unrelated components appear in the flamegraph and "Why did this render?" says "Hook X changed" in a parent, this is the pattern atomic state fixes.
+2. **Identify the offending state.** Usually a single `useState` or context value holding multiple unrelated pieces.
+3. **Try the compiler first if it fits.** If the codebase follows the Rules of React, install React Compiler ([[rn-perf-react-compiler]]) and re-profile. The book explicitly warns against migrating a whole app to a new state library "for the sake of performance when the compiler can do the heavy work for us" (p. 45). Atoms remain the right choice for greenfield code or where you want bottom-up granularity by design.
+4. **Install Jotai and atomize incrementally.** `npm install jotai`. For each unrelated slice of the offending state, create one atom: `const filterAtom = atom('all')`. Replace `useState`/`useContext` reads with `useAtom` (read+write), `useAtomValue` (read), or `useSetAtom` (write-only — the writer doesn't re-render on value changes).
+5. **Atomize hottest stores first.** Don't migrate the whole app at once; cold stores aren't worth the churn.
+6. **Verify in Profiler.** Re-record the same interaction; unrelated components should no longer appear in the commit.
+
+## Code patterns
+
+The anti-pattern — one component holds `filter` and `todos`; toggling a todo re-renders the `FilterMenuItem`s even though they don't depend on todos (book p. 42–43):
+
+```tsx
+const App = () => {
+  const [filter, setFilter] = useState('all');
+  const [todos, setTodos] = useState(initialState);
+
+  const filteredTodos = todos.filter(/* … */);
+
+  return (
+    <View>
+      {['all', 'active', 'completed'].map((filterType, index) => (
+        <FilterMenuItem
+          key={index}
+          title={filterType}
+          currentFilter={filter}
+          onChange={setFilter}
+        />
+      ))}
+      {filteredTodos.map((todo, index) => (
+        <TodoItem key={index} item={todo} onChange={setTodos} />
+      ))}
+    </View>
+  );
+};
+```
+
+The Jotai fix — `useSetAtom` for write-only consumers means the `TodoItem` doesn't re-render when other todos toggle (book pp. 43–45):
+
+```tsx
+import { atom, useAtom, useSetAtom } from 'jotai';
+
+const filterAtom = atom('all');
+const todosAtom = atom(initialState);
+
+const FilterMenuItem = ({ title, filterType }) => {
+  const [filter, setFilter] = useAtom(filterAtom);
+  return (
+    <TouchableOpacity onPress={() => setFilter(filterType)}>
+      <Text>{title}</Text>
+    </TouchableOpacity>
+  );
+};
+
+const TodoItem = ({ item }) => {
+  const setTodos = useSetAtom(todosAtom);
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        setTodos(prev =>
+          prev.map(todo =>
+            todo.id === item.id ? { ...todo, completed: !todo.completed } : todo
+          )
+        );
+      }}
+    >
+      {/* … */}
+    </TouchableOpacity>
+  );
+};
+```
+
+## Verification
+- **Profiler flamegraph diff:** before, the whole tree re-renders on every store change; after, only components subscribed to the changed atom appear. Unrelated components should report "Did not render on the client during this profiling session."
+- **Commit count:** updating one item in a list of N should produce a commit count proportional to changed items, not N.
+- **JS FPS:** rapid filter toggles or fast list updates hold at ≥ 58 fps on low-end Android.
+
+## Edge cases & gotchas
+- **Don't over-atomize.** Each `useAtom` is a subscription; thousands of fine-grained atoms have overhead. Group state by *change cadence*, not by every property.
+- **Derived atoms vs. computed values:** `atom((get) => get(todosAtom).filter(…))` is read-only; the writable variant is a different API. Pick deliberately.
+- **Persistence is opt-in.** Atoms don't survive app restart by default — pair with `jotai/utils`'s `atomWithStorage`, or Zustand's `persist` middleware backed by AsyncStorage.
+- **DevTools support is rougher.** Jotai/Zustand have community Redux-DevTools bridges but they're less polished than Redux's. That's the tradeoff for performance.
+- **The compiler may obviate this.** Use atoms when the bottom-up model genuinely fits, not as a generic perf band-aid.
+- All three libraries (Jotai, Zustand, Recoil) use `useSyncExternalStore` internally and play well with concurrent React.
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Atomic State Management", pp. 42–45
+- Jotai — https://jotai.org
+- Zustand — https://zustand.docs.pmnd.rs
+- Recoil — https://recoiljs.org (less actively maintained as of 2025)
+
+## Related skills
+- [[rn-perf-react-compiler]] — automated alternative; try first if Rules of React are followed.
+- [[rn-perf-profile-js-react]] — record before/after Profiler flamegraphs.
+- [[rn-perf-uncontrolled-components]] — sibling pattern that also "breaks out of React".
+- [[rn-perf-hunt-js-memory-leaks]] — large global stores are a common source of retained objects.
+- [[rn-perf-virtualized-lists]] — pairs well with per-row atom subscriptions.

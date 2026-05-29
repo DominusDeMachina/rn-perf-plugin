@@ -1,0 +1,108 @@
+---
+name: rn-perf-xcode-instruments
+description: Use when the user is opening, navigating, or interpreting Xcode Instruments for a React Native iOS app — launching from a running app via `Product → Profile` (Cmd+I) or `Xcode → Open Developer Tool → Instruments`, picking the Time Profiler / Leaks / Allocations template, reading the call tree vs flame graph, pinning the JS thread, toggling Call Tree filters, opening Debug View Hierarchy, or saving and sharing a `.trace` file. Trigger whenever the user mentions Xcode Instruments, Time Profiler, Leaks template, Allocations, Microhang, Hang, `RCTViewComponentView`, Debug View Hierarchy, `xctrace`, or asks "how do I attach Instruments to my RN app".
+---
+
+# Xcode Instruments (driver's manual)
+
+## When to use
+The user needs to drive Xcode Instruments or the Debug View Hierarchy on an iOS React Native app — launching a profiling session, picking a template, reading the call tree, marking regions, or saving/sharing `.trace` bundles with a teammate.
+
+## What this skill does (single responsibility)
+Covers driving Instruments and Debug View Hierarchy as tools — launch paths, template selection, navigation, region marking, and `.trace` round-trip. Does NOT cover what to do with the findings — see [[rn-perf-profile-native]] for fixing CPU hotspots, [[rn-perf-hunt-native-memory-leaks]] for fixing native leaks, [[rn-perf-view-flattening]] for layout-only-view reductions, and [[rn-perf-threading-model]] for interpreting thread interactions. Picking which profiler tool to use lives in [[rn-perf-profile-native]].
+
+## Workflow
+
+### Time Profiler (CPU)
+1. Open the iOS project: `xed ios` from the React Native project root.
+2. Set Scheme → Build Configuration to **Release** for measurement. Pick a real low-end device when possible.
+3. `Product → Profile` (Cmd+I). Xcode rebuilds and hands the app to Instruments.
+4. In the template picker, pick **Time Profiler** → Choose.
+5. Confirm the target dropdown (next to the iPhone icon) shows your app process.
+6. Click the red record dot (top-left). Reproduce the slow scenario. Click stop.
+7. Zoom with `Cmd +`. Drag-select a timeline region to scope the call tree below.
+8. Toggle Call Tree (top-down) ↔ Flame Graph via the icons next to "Call Tree".
+9. Open the Call Tree filter pop-over: Separate by State, Separate by Thread, Hide System Libraries, Flatten Recursion, Invert Call Tree.
+10. Pin the `com.facebook…ime.JavaScript` thread (the "+" next to the thread name) to correlate JS work against main-thread microhangs.
+11. Export: `File → Save…` produces a `.trace` bundle.
+
+### Leaks (Memory)
+1. From Xcode: `Product → Profile` (Cmd+I). Pick **Leaks** template.
+2. Click record. Walk the suspect path on the device (navigate to a screen, dismiss, repeat).
+3. Watch the **Leaks** lane — red diamonds at "1 new leak" timestamps mark new leaked objects.
+4. Click the red marker. The bottom pane shows Responsible Library, Responsible Frame, and full Stack Trace.
+5. Double-click the responsible frame to jump to source.
+6. After fixing, re-record — a green tick replaces the red diamond.
+
+### Debug View Hierarchy (Xcode toolbar, not Instruments)
+1. Build & run via Xcode (Cmd+R). Wait for the app on the simulator.
+2. Click the **Debug View Hierarchy** icon in the running toolbar above the console (tooltip says "Debug View Hierarchy"; located between Pause and the stack arrows).
+3. Xcode pauses execution and renders a 3D layered view of the native hierarchy. Left rail lists native views (`RCTRootComponentView`, `RCTSafeAreaViewComponentView`, `RCTEnhancedScrollView`).
+4. Rotate, slide layers apart, click any view to inspect frame and parent.
+5. Resume via Continue, or click the Stop debug-view button.
+
+### Reading a `.trace` shared by a teammate
+- Double-click the `.trace` file. It opens in Instruments using the same template that recorded it. Re-pin threads as needed.
+
+## Code/command patterns
+
+`Podfile` — ensure dSYMs for symbol-rich call trees:
+
+```ruby
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+    end
+  end
+end
+```
+
+CLI alternative (CI-friendly):
+
+```bash
+xcrun xctrace record --template 'Time Profiler' \
+  --device 'iPhone 16 Pro' \
+  --launch -- /path/to/SampleApp.app \
+  --time-limit 30s \
+  --output ~/Desktop/sample.trace
+```
+
+Navigation cheat sheet:
+- `Cmd +` / `Cmd -` — timeline zoom.
+- `Cmd 0` — fit timeline to window.
+- "+" next to a thread name — pin to keep visible while scrolling other threads.
+- Call Tree ↔ Flame Graph — icons next to the "Call Tree" label.
+
+## Verification
+- Save a `.trace`, close Instruments, double-click the file in Finder — Instruments reopens at the same zoom level.
+- A Time Profiler trace shows distinct lanes for the UI thread (`SampleApp`) and the JS thread (`com.facebook…ime.JavaScript`). Missing JS lane = build isn't Hermes-enabled or target was wrong.
+- Leaks: red diamond pre-fix, green tick post-fix.
+- Debug View Hierarchy lists `RCTViewComponentView` entries one-to-one with JSX `<View/>` under New Architecture.
+
+## Edge cases & gotchas
+- Rosetta on Apple Silicon: Instruments can hang or crash profiling an x86_64 simulator slice on an arm64 Mac. Use the native arm64 simulator and `arch -arm64` Pod install.
+- Symbols missing (rows like `0x1039c2b65 hermes`): dSYM not shipped or not located. Check `DEBUG_INFORMATION_FORMAT` and `DWARF_DSYM_FOLDER_PATH`.
+- On-device profiling requires a paid Apple Developer account and a provisioning profile that allows Profile. Simulator profiling needs no signing.
+- Time Profiler is sampling, not tracing — short hot functions can be missed. Zoom into a narrow window and re-record to confirm.
+- Leaks reports symbol noise at the top of the stack (`_malloc_type_malloc_outlined`, `operator new`). The responsible frame is usually 2–4 levels below.
+- Memory Report (Xcode Debug Navigator) is NOT Instruments — it is a quick live view. Click "Profile in Instruments" to hand off.
+- Microhang < 500 ms; Hang ≥ 500 ms. Treat both as worth investigating; Hangs first.
+- Debug View Hierarchy pauses the app — use for post-paused inspection, not mid-reproduction.
+- `.trace` files are often hundreds of MB. Don't check them into git.
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile Native Parts of React Native", pp. 76–84.
+- Book: same title, "How to Hunt Memory Leaks", pp. 85–87.
+- Book: same title, "Use View Flattening", pp. 119–121.
+- Apple: https://developer.apple.com/documentation/xcode/improving-your-app-s-performance
+- Apple: https://developer.apple.com/documentation/xcode/recording-performance-data
+- Apple: https://help.apple.com/instruments/mac/current/
+
+## Related skills
+- [[rn-perf-profile-native]] — what to do with Time Profiler findings.
+- [[rn-perf-hunt-native-memory-leaks]] — what to do with Leaks findings.
+- [[rn-perf-view-flattening]] — uses Debug View Hierarchy to verify layout-only-view merging.
+- [[rn-perf-android-studio-profiler]] — Android-side counterpart.
+- [[rn-perf-perfetto-traces]] — complementary system-level tracing.
+- [[rn-perf-react-native-devtools]] — JS-side counterpart often correlated with Instruments.

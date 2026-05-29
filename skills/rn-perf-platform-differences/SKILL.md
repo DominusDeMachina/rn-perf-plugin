@@ -1,0 +1,97 @@
+---
+name: rn-perf-platform-differences
+description: Use when the user is about to touch native code, native dependencies, or a platform-specific bug in a React Native app — installs the iOS-vs-Android mental map (Xcode + Clang + CocoaPods vs Android Studio + Gradle + DEX/ART) so the right artifact, dep file, and toolchain are chosen before any fix. Trigger whenever the user mentions Podfile, Gemfile, Gradle, build.gradle, gradle.properties, xcworkspace, xcodeproj, CocoaPods, pod install, gradlew, autolinking, Hermes bytecode, or a build that "works on one platform but not the other".
+---
+
+# React Native Platform Differences
+
+## When to use
+Before recommending any fix that touches native code, native dependencies, or the build system in a React Native app. Especially when the user mentions `Podfile`, `Gemfile`, `Gradle`, `xcworkspace`, autolinking, or reports a symptom that only reproduces on iOS or only on Android.
+
+## What this skill does (single responsibility)
+Gives the correct mental map of iOS vs Android build/runtime differences, dependency management, and IDE tooling so any subsequent optimization can be reasoned about correctly. Out of scope: actual profiling (see [[rn-perf-profile-native]]), memory hunting (see [[rn-perf-hunt-native-memory-leaks]]), and specific optimization techniques (view flattening, threading, TTI — separate skills).
+
+## The three-layer mental map
+
+| Layer | Editor | Bundler/Compiler | Dep registry | Build artifact |
+|---|---|---|---|---|
+| JavaScript | VSCode/WebStorm/Neovim | Metro + Babel + Hermes | npm (`package.json`) | JS bundle / `.jsbundle` Hermes bytecode |
+| iOS | **Xcode** (mandatory for Instruments, LLDB, signing) | Clang/LLVM | **CocoaPods** (`Podfile`), local from `node_modules/` via autolinking | `.ipa` / `.app` |
+| Android | **Android Studio** (mandatory for Profiler, Layout Inspector) | Java/Kotlin → `.class` → DEX → ART | **Gradle** (`build.gradle`), Maven Central / JitPack | `.apk` / `.aab` |
+
+Swift Package Manager is **not yet supported** by React Native — never recommend SPM for adding a native dep.
+
+## Files to recognise
+
+**iOS:** `ios/Podfile`, `ios/Gemfile` (pins CocoaPods Ruby version), `ios/Pods/` (gitignored), `ios/*.xcworkspace` (open this, **not** `.xcodeproj`).
+
+**Android:** `android/build.gradle` (project-level), `android/app/build.gradle` (app-level), `android/gradle.properties` (Hermes, ProGuard, `newArchEnabled`, `reactNativeArchitectures`), `android/gradlew`, `android/.gradle/` (cache, gitignored).
+
+## Workflow
+
+1. **Identify the layer the issue belongs to:**
+   - Symptom in JS only → JS layer (Metro / Babel / Hermes).
+   - Symptom in both platforms → likely JS or shared C++.
+   - Symptom one platform only → that platform's native toolchain.
+2. **Open the correct artifact:**
+   - iOS native → `ios/*.xcworkspace` in Xcode (never `.xcodeproj` after `pod install`).
+   - Android native → `android/` in Android Studio.
+   - JS → any editor.
+3. **Edit the correct dependency file when adding a package:**
+   - Pure JS → `package.json`.
+   - iOS-only native (e.g., `SDWebImage`) → `ios/Podfile`, then `cd ios && bundle exec pod install`.
+   - Android-only native (e.g., `Glide`) → `android/app/build.gradle`, then `cd android && ./gradlew clean`.
+4. **Pin versions for production.** Exact `4.12.0` in Gradle, pessimistic `~> 5.0.1` in CocoaPods. Avoid `+` and `*` — they cause non-reproducible builds.
+5. **Diagnose with the platform-correct profiler** — see [[rn-perf-profile-native]].
+
+## Code patterns
+
+Typical `Podfile`:
+```ruby
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+platform :ios, '12.4'
+install! 'cocoapods', :deterministic_uuids => false
+
+target 'HelloWorld' do
+  pod 'SDWebImage', '~> 5.0'
+end
+```
+
+Android native dep in `android/app/build.gradle`:
+```groovy
+dependencies {
+    implementation 'com.github.bumptech.glide:glide:4.12.0'
+}
+```
+
+Reinstall after a dep change:
+```bash
+cd ios && bundle exec pod install
+cd android && ./gradlew clean
+```
+
+## Verification
+- Run `npx react-native config` — lists all autolinked native modules; confirms the library's native side is picked up.
+- Confirm root contains: `Podfile`, `Gemfile`, `ios/Pods/`, `android/build.gradle`, `android/app/build.gradle`, `android/gradle.properties`, `gradlew`.
+- After a dep change, rebuild both platforms (`npx react-native run-ios`, `npx react-native run-android`) and confirm resolution succeeds on each.
+
+## Edge cases & gotchas
+- **`.xcodeproj` vs `.xcworkspace`** — after `pod install` you must open the workspace. Opening the project alone hides all CocoaPods deps and fails to compile.
+- Adding a native dep without running `pod install` (iOS) or syncing Gradle (Android) is the #1 cause of "but I added the dependency!" failures.
+- `reactNativeArchitectures=arm64-v8a` in `gradle.properties` (or `--activeArchOnly` on `run-android`) massively speeds local Android builds.
+- **Expo + Dev Clients / Config Plugins** abstracts most of this — redirect users to Config Plugins instead of editing `Podfile`/`build.gradle` directly.
+- Dynamic versions (`+` in Gradle, unconstrained CocoaPods deps) cause non-reproducible builds — flag on sight.
+- **SPM is not supported** for React Native (as of Jan 2025).
+
+## References
+- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Understand Platform Differences", pp. 67–75.
+- React Native CLI: https://github.com/react-native-community/cli
+
+## Related skills
+- [[rn-perf-profile-native]] — the very next step once you know which platform's toolchain is at play.
+- [[rn-perf-xcode-instruments]] — iOS-specific deep tooling.
+- [[rn-perf-android-studio-profiler]] — Android-specific deep tooling.
+- [[rn-perf-measure-tti]] — TTI markers diverge along the same iOS/Android lines.
+- [[rn-perf-hunt-native-memory-leaks]] — uses the platform-specific tool pair this skill maps.

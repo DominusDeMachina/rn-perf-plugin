@@ -86,7 +86,7 @@ Common RN thread lanes:
 ## Edge cases & gotchas
 - Release builds need `<profileable>` in the manifest. Debug builds work out of the box.
 - Emulator vs physical: emulator measurements look optimistic. Use a real low-end device for honest numbers (Android fragmentation matters).
-- CPU profiler dropdowns are version-sensitive. The "Tasks" model is Meerkat (2024+); older Android Studio shipped "Sample Java methods" etc.
+- CPU profiler dropdowns are version-sensitive. The "Tasks" model arrived in Koala Feature Drop (2024.1.2); older Android Studio shipped "Sample Java methods" etc.
 - Process picker shows multiple Hermes runtimes when the app uses multiple surfaces. Confirm `com.sampleapp`, not a `:remote` process.
 - System Trace files are huge — easily 50–500 MB. They open in Android Studio Profiler, `ui.perfetto.dev`, or via `traceconv`.
 - `mqt_v_js` is Hermes-only. `RCTJSBridge` / `Bridge: Worker` means JSC/legacy build.

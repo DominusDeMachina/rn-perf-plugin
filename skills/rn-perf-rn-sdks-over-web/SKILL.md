@@ -134,7 +134,7 @@ const MyTabs = createNativeBottomTabNavigator({
 - **Native Stack has a slightly different API** vs JS Stack (`headerLargeTitle`, gesture options). Some screens need adjustments.
 - **Native Tabs look different per-platform** (large iOS, Material Android). That's the point — if your design system demands identical look on both, native tabs are not for you.
 - **Zeego on web** falls back to Radix UI — keep that in mind for cross-platform projects.
-- **`react-native-quick-crypto` requires the New Architecture** (or a specific RN version range). Confirm compatibility.
+- **`react-native-quick-crypto` 1.x is built on Nitro Modules and requires the New Architecture** plus RN 0.75+ (install `react-native-nitro-modules` alongside it). On the old architecture or RN < 0.75, use the bridge-based 0.x line.
 - **Locale data files** are often bigger than the polyfill itself — audit which locales you actually ship.
 - **Don't replace JS components when no native equivalent exists** or design genuinely demands JS flexibility. The book's stance: push back on *design*, not engineering — *"Great UX is about the dialog between designers' creativity and what's physically possible from an engineering standpoint."*
 

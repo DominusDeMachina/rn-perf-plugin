@@ -78,6 +78,7 @@ return <TextInput value={query} onChangeText={setQuery} />;
 - **User-observable:** characters appear instantaneously with no perceptible lag.
 
 ## Edge cases & gotchas
+- **New Architecture note:** the classic controlled-input de-sync/flicker (characters jumping behind keystrokes) was largely an old async-bridge artifact; Fabric's synchronous layout and event handling (default since RN 0.76) mostly eliminates it. On the New Architecture, convert to uncontrolled mainly to cut per-keystroke re-render cost on heavy screens — not to fix flicker.
 - **`defaultValue` only seeds the input once.** To programmatically change the value later, do so imperatively: `ref.current?.setNativeProps({ text: '…' })`. Re-rendering with a new `defaultValue` will not update the input.
 - For inputs that **must** sync with React state on every change (rare — usually per-character validation feedback), keep controlled but isolate via `React.memo` and atomic state ([[rn-perf-atomic-state-management]]).
 - **React Hook Form's `<Controller>` reintroduces the controlled pattern.** Prefer its `register()` API for performance.
@@ -86,6 +87,7 @@ return <TextInput value={query} onChangeText={setQuery} />;
 ## References
 - Book: "The Ultimate Guide to React Native Optimization" (2025), "Uncontrolled Components", pp. 30–33.
 - React Hook Form: https://react-hook-form.com
+- RN New Architecture (synchronous layout & events): https://reactnative.dev/architecture/landing-page
 
 ## Related skills
 - [[rn-perf-concurrent-react]] — `useDeferredValue` for the controlled-but-debounced case.

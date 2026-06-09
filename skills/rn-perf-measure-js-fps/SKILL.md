@@ -18,25 +18,28 @@ Measures **JS-thread FPS** (and the companion UI-thread FPS) two ways: interacti
 2. Tap **"Show Perf Monitor"**. An overlay shows `UI` and `JS` FPS.
 3. Reproduce the suspect scenario and watch the **JS** counter.
 4. Sustained < ~50 fps = a JS-FPS bug. A dip during a specific transition = that interaction is too heavy.
+5. For realistic numbers, disable dev mode first: Android — Dev Menu → **Settings** → uncheck **"JS Dev Mode"**; iOS — serve a non-dev bundle from Metro (`dev=false`) or use a release build.
 
 ### Automated — Flashlight in CI (Android only)
 1. Install the CLI: `curl https://get.flashlight.dev | bash`.
 2. Build an Android **release** APK (Flashlight requires release; dev builds give nonsense numbers).
 3. Author a Maestro flow describing the scenario at `.maestro/<name>.yaml` (see snippet below).
-4. Run `flashlight measure` — interactively choose package, flow, duration.
-5. Open the HTML report. It surfaces JS FPS, UI FPS, thread CPU, memory, and a 0–100 perf score per scenario.
+4. Run `flashlight test --bundleId com.example.app --testCommand "maestro test .maestro/<name>.yaml" --duration 10000 --resultsFilePath results.json`. (`flashlight measure` is the *manual* real-time web dashboard — Maestro-driven runs go through `flashlight test`.)
+5. Open the report with `flashlight report results.json`. It surfaces JS FPS, UI FPS, thread CPU, memory, and a 0–100 perf score per scenario.
 6. Commit the report's `.json` as the baseline; compare on each PR.
 
 ## Code patterns
 
-Programmatic JS-FPS sampling via the internal `PerfMonitor` API for scripted scenarios:
+React Native has **no public JS API** for reading the Perf Monitor's FPS numbers (`Libraries/Performance` only ships `Systrace`) — read FPS from the overlay manually, or use Flashlight for automation. To time a suspect interaction programmatically, use [`react-native-performance`](https://github.com/oblador/react-native-performance) marks/measures:
 
 ```ts
-import { PerfMonitor } from 'react-native/Libraries/Performance/PerfMonitor';
+import performance from 'react-native-performance';
 
-PerfMonitor.start();
+performance.mark('interactionStart');
 runSuspectInteraction();
-PerfMonitor.stop();
+performance.measure('suspectInteraction', 'interactionStart');
+performance.getEntriesByName('suspectInteraction');
+// [{ name: 'suspectInteraction', entryType: 'measure', startTime: 98, duration: 123 }]
 ```
 
 Minimal Maestro flow consumed by Flashlight:

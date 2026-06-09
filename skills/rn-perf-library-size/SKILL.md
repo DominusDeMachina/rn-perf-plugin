@@ -42,13 +42,13 @@ Example bundlephobia interpretation (`react-native-paper@5.13.1`):
 - Side-effect free: yes
 - Dependencies: 3
 
-Optional npm-script wrapper to capture size for CI logging:
+pkg-size.dev works by URL — no install needed, handy for PR descriptions:
 
-```json
-"scripts": {
-  "size:check": "npx pkg-size"
-}
 ```
+https://pkg-size.dev/react-native-paper
+```
+
+(Don't confuse it with the `pkg-size` npm CLI — that tool measures the publish/tarball size of *your own* package, not a candidate dependency.)
 
 ## Verification
 - For any new dependency PR, document the **bundlephobia minified+gzipped** number in the PR description.

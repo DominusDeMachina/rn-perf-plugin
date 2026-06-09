@@ -15,10 +15,10 @@ Covers driving Flashlight + Maestro on Android — install, building a release A
 
 ### Install
 ```bash
-# Flashlight CLI
+# Flashlight CLI (macOS/Linux)
 curl https://get.flashlight.dev | bash
-# Or via npm globally
-npm install -g @perf-profiler/flashlight
+# Windows (PowerShell)
+iwr https://get.flashlight.dev/windows -useb | iex
 
 # Maestro (Flashlight's scenario driver) is required
 curl -Ls "https://get.maestro.mobile.dev" | bash
@@ -55,9 +55,9 @@ appId: com.sampleapp
    ```bash
    flashlight measure
    ```
-4. Answer the prompts: bundle ID (`com.sampleapp`), test command (Maestro pointing at the YAML), duration.
-5. Flashlight drives the flow, samples FPS/CPU/RAM/threads in real time, and writes `report.json` + `report.html`.
-6. Open the HTML report — top is the 0–100 score, below are JS FPS, UI FPS, CPU%, RAM (MB), per-thread breakdown.
+4. Flashlight serves a web dashboard (default `http://localhost:3000`); open it, pick the running app, and drive the app **by hand** — no Maestro flow here.
+5. The dashboard graphs FPS/CPU/RAM/threads in real time as you interact.
+6. Maestro-driven, scored runs are `flashlight test` (next section); view its results JSON with `flashlight report results.json` — top is the 0–100 score, below are JS FPS, UI FPS, CPU%, RAM (MB), per-thread breakdown.
 
 ### Scripted (CI) measurement
 ```bash
@@ -71,12 +71,12 @@ flashlight test \
 
 ### Compare against a committed baseline
 ```bash
-flashlight report ./flashlight-results.json \
-  --compare ./baseline-results.json \
-  --outputPath ./flashlight-report.html
+# Pass multiple results JSONs (or a folder) to get the comparison view
+flashlight report ./flashlight-results.json ./baseline-results.json \
+  --output-dir ./flashlight-report
 ```
 
-Commit `baseline-results.json` as the perf SLA. The HTML diff view shows +/- deltas on JS FPS, CPU, RAM, score.
+Commit `baseline-results.json` as the perf SLA. The comparison report (`flashlight-report/report.html`) shows +/- deltas on JS FPS, CPU, RAM, score.
 
 ### Read the report
 - **JS FPS** target: ≥ 58 average.
@@ -128,13 +128,12 @@ jobs:
               --resultsFilePath ./pr-results.json
       - name: Compare against baseline
         run: |
-          flashlight report ./pr-results.json \
-            --compare ./perf-baseline.json \
-            --outputPath ./flashlight-report.html
+          flashlight report ./pr-results.json ./perf-baseline.json \
+            --output-dir ./flashlight-report
       - uses: actions/upload-artifact@v4
         with:
           name: flashlight-report
-          path: flashlight-report.html
+          path: flashlight-report/report.html
 ```
 
 Multi-iteration for noise reduction:
@@ -154,15 +153,15 @@ flashlight test \
 {
   "scripts": {
     "perf:baseline": "flashlight test --bundleId com.sampleapp --testCommand 'maestro test .maestro/scroll.yaml' --resultsFilePath ./perf-baseline.json",
-    "perf:check":    "flashlight test --bundleId com.sampleapp --testCommand 'maestro test .maestro/scroll.yaml' --resultsFilePath ./pr-results.json && flashlight report ./pr-results.json --compare ./perf-baseline.json --outputPath ./flashlight-report.html"
+    "perf:check":    "flashlight test --bundleId com.sampleapp --testCommand 'maestro test .maestro/scroll.yaml' --resultsFilePath ./pr-results.json && flashlight report ./pr-results.json ./perf-baseline.json --output-dir ./flashlight-report"
   }
 }
 ```
 
 ## Verification
-- Run `flashlight measure` once → HTML report opens. No-op Maestro flow should idle at ~60 fps JS FPS.
+- Run `flashlight measure` once → live web dashboard opens; an idle app should sit at ~60 JS FPS.
 - Add a deliberate regression (e.g. `while(true)` on a tap) → re-run → score drops 30+ points.
-- `report.json` should contain ~600 samples in `iterations[].measures` for a 10 s recording (≈ 60 Hz sampling).
+- The results `.json` should contain ~20 entries in `iterations[].measures` for a 10 s recording — Flashlight samples every 500 ms (`POLLING_INTERVAL = 500` in `@perf-profiler/types`), not per frame.
 - CI smoke: run the Action once with no code changes; diff vs baseline within ±2 points.
 
 ## Edge cases & gotchas

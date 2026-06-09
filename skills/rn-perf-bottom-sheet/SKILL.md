@@ -118,7 +118,7 @@ Keyboard-aware input:
 - `onChange` fires after snap completion; do not use it for continuous position tracking.
 - `onAnimate` can run repeatedly as the sheet retargets; keep it cheap and avoid driving large React subtrees from it.
 - Hidden always-mounted sheet children can still receive touches. Set `pointerEvents`, `accessibilityElementsHidden`, and `importantForAccessibility` based on the bridged visible state.
-- `enableDynamicSizing` defaults can insert a content-height snap point and shift snap indexes. Set `enableDynamicSizing={false}` when index stability matters.
+- `enableDynamicSizing` defaults to `true` and adds a content-height snap point into the provided `snapPoints`, sorted into place — e.g. `[100, 1000]` with content height 500 becomes `[100, 500, 1000]` — which shifts snap indexes. Set `enableDynamicSizing={false}` when index stability matters.
 - `BottomSheetScrollView` ignores `scrollEventThrottle`; move scroll-driven visuals to Reanimated scroll handlers instead of trying to tune JS scroll frequency.
 - Raw React Native `ScrollView` / `FlatList` inside a sheet often breaks gesture coordination. Use sheet-provided wrappers or `renderScrollComponent`.
 - `BottomSheetTextInput` contains keyboard integration. Custom inputs need equivalent focus/blur handling.

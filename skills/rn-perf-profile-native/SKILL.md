@@ -58,7 +58,7 @@ RCTViewComponentView                  -> iOS Fabric view component
 ```
 
 ## Verification
-- Re-record after the fix on the **same device** with the same scenario. The hot function's *Weight* / *Total %* should drop measurably (book example: ~240 ms of UI-thread work eliminated).
+- Re-record after the fix on the **same device** with the same scenario. The hot function's *Weight* / *Total %* should drop measurably (book example: the 5k-view re-render summed to over 240 ms of JS-thread work vs the 16.6 ms frame budget).
 - Pin the JS thread in both before/after so you can confirm work didn't shift to a different thread.
 - For frame-rate impact, confirm **Android Missed Frames** count drops in Perfetto.
 - **Profile release builds for absolute numbers; dev builds for relative before/after only.**

@@ -19,7 +19,7 @@ Hermes Intl support changes over time and can vary by platform. Treat this table
 |---|---|---|
 | `Intl.Collator` | yes | Locale or option behavior fails in the target app/runtime |
 | `Intl.DateTimeFormat` | yes | The app needs unsupported options in its supported locales |
-| `Intl.NumberFormat` | partial | The app uses unsupported options or `formatToParts()` on Hermes/iOS |
+| `Intl.NumberFormat` | yes | The app uses options that fail a runtime probe in the target Hermes runtime |
 | `Intl.getCanonicalLocales()` | yes | Runtime probe fails |
 | `Intl.supportedValuesOf()` | yes | Runtime probe fails |
 | `Intl.Locale` | no | The app constructs or inspects `Intl.Locale` |
@@ -51,6 +51,8 @@ Remove only supported Intl polyfills after method-level audit:
 ```diff
 -import '@formatjs/intl-getcanonicallocales/polyfill';
  import '@formatjs/intl-locale/polyfill';
+-import '@formatjs/intl-numberformat/polyfill';
+-import '@formatjs/intl-numberformat/locale-data/en';
 -import '@formatjs/intl-datetimeformat/polyfill';
 -import '@formatjs/intl-datetimeformat/locale-data/en';
  import '@formatjs/intl-pluralrules/polyfill';
@@ -60,7 +62,7 @@ Remove only supported Intl polyfills after method-level audit:
  import '@formatjs/intl-displaynames/polyfill';
 ```
 
-Keep NumberFormat when the app uses `formatToParts()` on Hermes/iOS:
+Probe edge-case methods like `formatToParts()` at runtime before relying on the built-in:
 
 ```tsx
 const usesParts = new Intl.NumberFormat('en-US', {

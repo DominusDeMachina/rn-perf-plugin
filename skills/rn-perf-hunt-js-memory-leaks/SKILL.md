@@ -76,7 +76,7 @@ In the Comparison table, sort by **# Delta** desc and ignore React internal type
 - Hades is concurrent — most collection isn't stop-the-world, but heap pressure still hurts TTI and perf. A leak that doesn't crash still costs FPS.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Hunt JS Memory Leaks", pp. 27–35.
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Hunt JS Memory Leaks", pp. 24–29.
 - Chrome DevTools Memory docs: https://developer.chrome.com/docs/devtools/memory-problems/
 
 ## Related skills

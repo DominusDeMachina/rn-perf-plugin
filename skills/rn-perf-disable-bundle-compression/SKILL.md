@@ -20,7 +20,7 @@ Add `noCompress += ["bundle"]` to the `androidResources` block in `android/app/b
 4. Confirm uncompressed bundle: `unzip -l <apk> | grep index.android.bundle` — the "size" and "compressed size" columns should match.
 5. Measure before/after:
    - APK install size with Ruler (see [[rn-perf-analyze-app-bundle]]) — expect a modest increase (book: +6.1 MB, +8% on a 75.9 MB sample).
-   - TTI with [[rn-perf-measure-js-fps]] / Flashlight — expect a measurable drop (book: -450 ms, -16% on the same sample).
+   - TTI with [[rn-perf-measure-tti]] / Flashlight — expect a measurable drop (book: -450 ms, -16% on the same sample).
    - Download size: **unchanged** (Play Store still compresses for transport).
 6. Ship if the trade-off is favourable — almost always yes for Hermes apps.
 

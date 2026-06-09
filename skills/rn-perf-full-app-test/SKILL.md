@@ -223,7 +223,7 @@ The audit is complete when:
 ## References
 
 - Book: "The Ultimate Guide to React Native Optimization" (2025), Callstack — the complete optimization checklist this audit walks. TOC: Preface (p. 4) · How to Read (p. 5) · Why Performance Matters (p. 7); Part 1 JavaScript (chapters at pp. 14, 21, 24, 30, 34, 42, 46, 52, 59); Part 2 Native (pp. 67, 76, 85, 91, 99, 111, 119, 123, 128); Part 3 Bundling (pp. 142, 148, 154, 156, 159, 163, 167, 170, 175).
-- The 35 sibling `rn-perf-*` skills under `~/.claude/skills/` — see `ls ~/.claude/skills/ | grep ^rn-perf-`.
+- The 35 sibling `rn-perf-*` skills shipped in this plugin's `skills/` directory — invoke them by name via the Skill tool.
 
 ## Related skills
 

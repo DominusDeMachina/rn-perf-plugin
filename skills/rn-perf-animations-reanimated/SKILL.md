@@ -34,11 +34,10 @@ Moves animations off the JS thread using Reanimated/worklets (`useSharedValue`, 
 
 ## Code patterns
 
-Worklet on the UI thread via `useAnimatedStyle` — the `'worklet'` directive marks the callback so the Reanimated Babel plugin compiles it for the UI runtime (book p. 60):
+Worklet on the UI thread via `useAnimatedStyle` — the hook's callback runs on the UI thread by default; the Reanimated Babel plugin workletizes it automatically, no directive needed (book p. 60):
 
 ```tsx
 const style = useAnimatedStyle(() => {
-  'worklet';
   // Runs on the UI thread
   return { opacity: 0.2 };
 });
@@ -63,7 +62,6 @@ const triggerAnimation = (targetValue: number) => {
     targetValue,
     { duration: 400 },
     (finished) => {
-      'worklet';
       if (finished) {
         runOnJS(notifyCompletion)();
       }
@@ -156,7 +154,7 @@ useFocusEffect(
 - **No frame drops in Xcode Instruments' Core Animation instrument** during the animation on iOS.
 
 ## Edge cases & gotchas
-- **`'worklet'` directive is mandatory** in callbacks executed on the UI thread. Functions called from inside `useAnimatedStyle` or `runOnUI` must either start with `'worklet'` or be Reanimated APIs themselves. Calling a regular JS function inside a worklet without `runOnJS` silently misbehaves.
+- **Callbacks passed directly to Reanimated APIs (`useAnimatedStyle`, `runOnUI`, `withTiming`) are workletized automatically** by the Babel plugin. Separate functions called from inside a worklet must either start with `'worklet'` or be Reanimated APIs themselves. Calling a regular JS function inside a worklet without `runOnJS` silently misbehaves.
 - **Don't read React state inside a worklet.** Worklets see a snapshot of captured values and can't subscribe to React state. Use `useSharedValue` as the bridge.
 - **`measure` and `scrollTo` only work on the UI thread** — wrap calls in `runOnUI` (v3) or `scheduleOnUI` (v4).
 - **Active touches block `runAfterInteractions`** (book p. 62): "The touch handling system considers one or more active touches to be an 'interaction' and will delay `runAfterInteractions()` callbacks until all touches have ended or been canceled." Don't expect tasks to run while a finger is down.

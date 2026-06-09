@@ -177,7 +177,7 @@ flashlight test \
 - Flashlight Cloud (paid) offers `flashlight cloud test` if you don't want to maintain CI emulators.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Measure JS FPS", pp. 22–26.
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Measure JS FPS", pp. 21–23 (Flashlight on p. 23).
 - Book: Libraries acknowledgements, p. 179.
 - Flashlight: https://flashlight.dev
 - Maestro: https://maestro.mobile.dev

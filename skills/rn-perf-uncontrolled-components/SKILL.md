@@ -16,7 +16,7 @@ Converts controlled `TextInput`s (value in React state) to **uncontrolled** inpu
 2. **Decide if the value is actually consumed per keystroke.**
    - **No** (login, settings, signup, profile edit, anything read on submit) → make it uncontrolled.
    - **Yes, live search** → keep controlled but **debounce** the consumer (150–300 ms) and use `useDeferredValue` (see [[rn-perf-concurrent-react]]).
-3. **Apply the conversion pattern.** The book's preferred form is value in a `useRef`, never in state — see snippets below.
+3. **Apply the conversion pattern.** The book's fix is removing the `value` prop from `TextInput` so data flows one way, from the native input to JS; keeping the value in a ref (never in state) additionally eliminates the re-renders — see snippets below.
 4. **Profile.** Record while typing 10 characters with React Profiler. Parent commit count should drop from 10 to 0.
 
 ## Code patterns
@@ -28,7 +28,7 @@ const [name, setName] = useState('');
 return <TextInput value={name} onChangeText={setName} />;
 ```
 
-Uncontrolled, ref-driven (book's preferred form — value never in state):
+Uncontrolled — the book's fix is dropping the `value` prop; storing the value in a ref instead of state also removes the per-keystroke re-renders:
 
 ```tsx
 const valueRef = useRef('');
@@ -46,14 +46,21 @@ return (
 Uncontrolled, native-ref pattern:
 
 ```tsx
-const ref = useRef<TextInput>(null);
+const inputRef = useRef<TextInput>(null);
+const valueRef = useRef('');
 
 const handleSubmit = () => {
-  const value = ref.current?.props.value;
-  submit(value);
+  submit(valueRef.current);
+  inputRef.current?.clear(); // imperative control via the native ref
 };
 
-return <TextInput ref={ref} defaultValue="" />;
+return (
+  <TextInput
+    ref={inputRef}
+    defaultValue=""
+    onChangeText={(text) => { valueRef.current = text; }}
+  />
+);
 ```
 
 Controlled-with-debounce when live search is genuinely required:
@@ -77,7 +84,7 @@ return <TextInput value={query} onChangeText={setQuery} />;
 - iOS auto-fill, 1Password, and iCloud Keychain can interact differently with uncontrolled inputs — test with real keyboards.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "Uncontrolled Components", pp. 36–40.
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "Uncontrolled Components", pp. 30–33.
 - React Hook Form: https://react-hook-form.com
 
 ## Related skills

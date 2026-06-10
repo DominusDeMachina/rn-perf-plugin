@@ -1,0 +1,126 @@
+description = "Use when a React Native app has janky screen transitions, slow navigation, frozen push/pop animations, white flashes on navigate, or heavy screens around `@react-navigation/nati..."
+prompt = '''
+# RN Perf Skill: rn-perf-navigation-transitions
+
+Use when: Use when a React Native app has janky screen transitions, slow navigation, frozen push/pop animations, white flashes on navigate, or heavy screens around `@react-navigation/native-stack`, `@react-navigation/stack`, `react-native-screens`, `enableFreeze`, `freezeOnBlur`, `lazy`, `unmountOnBlur`, `InteractionManager.runAfterInteractions`, `useFocusEffect`, `transitionEnd`, or expo-router. Moves transitions to native stacks, freezes offscreen screens, and defers heavy mount work until after the animation completes.
+
+Follow the skill instructions below. If another RN Perf skill is referenced as `[[skill-name]]`, use that skill's command when it is available, or apply the referenced skill from the package source if you have it loaded.
+
+Gemini CLI appends the user's raw command after this prompt when arguments are provided.
+
+# Navigation Transition Performance
+
+## When to use
+The user reports stuttering push/pop or tab-switch animations, a visible pause before a screen appears, dropped frames during navigation, screens that re-render while not visible, or asks whether to use native-stack vs the JS stack, `freezeOnBlur`, `lazy`, or `unmountOnBlur` (works with React Navigation directly or via expo-router, which sits on top of it).
+
+## What this skill does (single responsibility)
+Makes screen transitions smooth by using native stack animations, freezing/lazy-mounting offscreen screens, and deferring expensive mount work until the transition finishes. Out of scope: tuning the animations themselves with worklets ([[rn-perf-animations-reanimated]]), list rendering inside the destination screen ([[rn-perf-virtualized-lists]]), general render profiling methodology ([[rn-perf-profile-js-react]]), and skeleton/optimistic-UI tricks that mask latency ([[rn-perf-perceived-performance]]).
+
+## Workflow
+1. **Measure a baseline first.** In a release build on a real (ideally low-end Android) device, record FPS while performing the exact janky transition using [[rn-perf-measure-js-fps]]. Dev mode adds overhead that fakes transition jank — never diagnose there. Note which thread drops frames: UI-thread drops point at the animation driver; JS-thread drops point at mount work on the destination screen.
+2. **Check versions before giving API advice.** Read `package.json`: `@react-navigation/native` major (v6 vs v7), whether `@react-navigation/stack` or `@react-navigation/native-stack` is installed, and the `react-native-screens` version. Adding or swapping navigator packages is a supply-chain change — pin versions and review the diff like any new dependency.
+3. **Prefer the native stack.** `@react-navigation/native-stack` drives transitions with `UINavigationController` / `Fragment` animations via `react-native-screens`, so the push animation runs natively even when JS is busy. The JS `@react-navigation/stack` animates with JS-configured Animated and competes with screen mounting. Migrate unless you need custom interpolators the native stack can't express.
+4. **Freeze offscreen screens.** Enable `freezeOnBlur` (per-screen or via `enableFreeze(true)`) so react-native-screens uses react-freeze to stop re-renders of screens deeper in the stack or in inactive tabs.
+5. **Lazy-mount tabs and drawers.** Keep `lazy: true` (default in tab/drawer navigators) so non-initial tabs mount on first focus. Reach for `unmountOnBlur` (v7: `popToTopOnBlur` for nested stacks) only when memory demands it — it pays the full remount cost on every return.
+6. **Defer heavy work until after the transition.** Render a cheap first frame (header + placeholder), then start fetches/parsing/heavy subtrees after the `transitionEnd` event or `InteractionManager.runAfterInteractions`. Keep the initial commit small: don't fetch + parse + render the whole screen in the first render.
+7. **Re-measure.** Repeat the exact same interaction on the same device and build; compare FPS traces and React Profiler commit durations before/after. Only memoize destination-screen components if the profiler shows them re-rendering expensively during the transition — never speculatively.
+
+## Code patterns
+
+Native stack with freeze (React Navigation v7 static API; v6 uses `<Stack.Navigator screenOptions={{ freezeOnBlur: true }}>`):
+
+```tsx
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { enableFreeze } from 'react-native-screens';
+
+enableFreeze(true); // app entry, before rendering; opt out per screen if needed
+
+const Stack = createNativeStackNavigator({
+  screenOptions: { freezeOnBlur: true },
+  screens: { Home: HomeScreen, Details: DetailsScreen },
+});
+```
+
+Lazy tabs, v6 options API:
+
+```tsx
+<Tab.Navigator screenOptions={{ lazy: true, freezeOnBlur: true }}>
+  <Tab.Screen name="Feed" component={FeedScreen} />
+  <Tab.Screen name="Profile" component={ProfileScreen} />
+</Tab.Navigator>
+```
+
+Defer heavy hydration until the push animation completes:
+
+```tsx
+function DetailsScreen() {
+  const navigation = useNavigation();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const unsub = navigation.addListener('transitionEnd', () => setReady(true));
+    return unsub;
+  }, [navigation]);
+
+  if (!ready) return <DetailsSkeleton />; // cheap first frame
+  return <HeavyDetailsBody />;
+}
+```
+
+`InteractionManager` variant scoped to focus (also fires on tab switches, which have no `transitionEnd`):
+
+```tsx
+useFocusEffect(
+  useCallback(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      loadExpensiveData();
+    });
+    return () => task.cancel();
+  }, [])
+);
+```
+
+expo-router uses the same levers through screen options:
+
+```tsx
+// app/_layout.tsx — expo-router wraps react-navigation native-stack
+import { Stack } from 'expo-router';
+
+export default function Layout() {
+  return <Stack screenOptions={{ freezeOnBlur: true }} />;
+}
+```
+
+## Verification
+- Release-build FPS trace shows the push/pop animation holding the device refresh rate where it previously dropped frames.
+- React Profiler shows blurred screens committing zero renders while frozen, and the destination screen's first commit is small (placeholder), with heavy commits landing after `transitionEnd`.
+- No white flash or visibly empty screen: the placeholder frame paints immediately on navigate.
+- Tab switches to lazy screens mount on first focus only; returning to a tab does not remount unless `unmountOnBlur` was deliberately chosen.
+- Same device, same build type, same interaction for before/after numbers.
+
+## Edge cases & gotchas
+- `transitionEnd` exists on stack navigators only; tab/bottom-tab switches need `useFocusEffect` + `InteractionManager` instead.
+- `runAfterInteractions` waits for *all* registered interactions — a long-running JS animation can starve it indefinitely; prefer the `transitionEnd` listener when on a stack.
+- `freezeOnBlur` freezes renders but not effects' cleanup timing; subscriptions opened on a frozen screen stay alive — pair with focus-scoped effects.
+- Frozen screens can show stale data on return; refresh in `useFocusEffect`, not on mount.
+- v6 vs v7: v7 renamed/added options (`popToTopOnBlur`, static config); check the installed major before pasting option names. `unmountOnBlur` on v7 tab navigators was removed in favor of `popToTopOnBlur`.
+- The JS stack's custom `cardStyleInterpolator`s have no native-stack equivalent; if a bespoke transition is a hard requirement, keep the JS stack for that one navigator and optimize the screen mount instead.
+- `react-native-screens` must not be disabled (`enableScreens(false)`) anywhere — some legacy codebases turned it off to dodge old bugs and silently lost native transitions.
+- Suspense-throwing components during a native transition can cause flicker; gate with the `ready` flag pattern instead of suspending mid-animation.
+
+## References
+- Native Stack Navigator: https://reactnavigation.org/docs/native-stack-navigator/
+- React Navigation transition events: https://reactnavigation.org/docs/navigation-events/
+- react-native-screens (enableFreeze, freezeOnBlur): https://github.com/software-mansion/react-native-screens
+- react-freeze: https://github.com/software-mansion/react-freeze
+- InteractionManager: https://reactnative.dev/docs/interactionmanager
+- expo-router stack options: https://docs.expo.dev/router/advanced/stack/
+
+## Related skills
+- [[rn-perf-profile-js-react]] - find which components make the destination screen's first commit expensive
+- [[rn-perf-measure-js-fps]] - record transition FPS in release builds for the baseline and verification
+- [[rn-perf-animations-reanimated]] - custom transition or gesture animations on the UI thread
+- [[rn-perf-concurrent-react]] - `useTransition`/`useDeferredValue` to keep typing/navigation responsive during hydration
+- [[rn-perf-perceived-performance]] - skeletons and placeholders that make the deferred hydration feel instant
+- [[rn-perf-virtualized-lists]] - when the destination screen's cost is a long list
+'''

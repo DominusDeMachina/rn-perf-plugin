@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Perceived Performance"
+  short_description: "Make React Native apps feel faster"
+  default_prompt: "Use $rn-perf-perceived-performance to make justified latency feel fast in a React Native app."

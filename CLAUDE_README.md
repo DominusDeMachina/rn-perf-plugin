@@ -44,9 +44,18 @@ Claude Code invokes plugin skills with the plugin namespace:
 
 For broad audits, regressions, unclear performance symptoms, or multi-area changes, start with `/rn-perf:rn-perf-full-app-test`.
 
+## Automatic Mandate Hook
+
+Installing the plugin is enough to make the skills mandatory — no per-project setup needed. The plugin ships hooks (`hooks/hooks.json`, referenced from `.claude-plugin/plugin.json`) that detect whether the working project depends on `react-native` or `expo` and, if so, inject the RN Perf mandatory-skill policy into Claude's context:
+
+- **SessionStart** (startup, resume, and post-compaction) — the policy is present from the first message and survives context compaction.
+- **PreToolUse** on `Edit|Write|MultiEdit|NotebookEdit` — re-injected once per session right before the first file edit, so it is fresh exactly when code changes begin.
+
+The hook is read-only: it never blocks or auto-approves a tool call, and it stays silent in non-React-Native projects. To opt out, disable or uninstall the plugin (`/plugin`), or remove the hook entries via `/hooks`.
+
 ## Project CLAUDE.md Guidance
 
-Add project guidance to the target React Native app's `CLAUDE.md` when RN Perf should be mandatory:
+The hook above already enforces the policy wherever the plugin is installed. Add the snippet below to the target app's `CLAUDE.md` only as reinforcement — for example, for teammates who use the skills from a checkout without installing the plugin:
 
 ```md
 ## Mandatory RN Perf Skills

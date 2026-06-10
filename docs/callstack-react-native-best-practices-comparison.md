@@ -6,6 +6,8 @@ Local source: this repository, `/Users/gennadiyfurduy/Projects/rn-perf-plugin`
 
 Implementation status: proposed gap-closing changes have been applied in this repo. RN Perf now has 36 skills, including `rn-perf-bottom-sheet` and `rn-perf-android-16kb-alignment`, plus refreshed shared guardrails and version-specific guidance.
 
+Addendum (2026-06-10): upstream is unchanged since the sync above (last commit `a5c8f21`). RN Perf added 7 skills beyond upstream's scope — `rn-perf-images`, `rn-perf-navigation-transitions`, `rn-perf-network-data-layer`, `rn-perf-production-monitoring`, `rn-perf-startup-deferred-init`, `rn-perf-storage`, and `rn-perf-perceived-performance` — bringing the total to 43. Non-performance best practices (testing, accessibility, security, error handling, OTA updates, deep linking) live in the sibling `rn-quality-plugin` rather than this plugin.
+
 Upstream source: [callstackincubator/agent-skills `skills/react-native-best-practices`](https://github.com/callstackincubator/agent-skills/tree/main/skills/react-native-best-practices), fetched at commit `a5c8f21` (`2026-05-25`, `docs: add agent-device verification guidance (#63)`).
 
 ## Executive Summary

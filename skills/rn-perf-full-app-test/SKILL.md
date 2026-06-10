@@ -1,6 +1,6 @@
 ---
 name: rn-perf-full-app-test
-description: Use when the user wants a comprehensive performance audit of a React Native app — walks the full optimization checklist from Callstack's "The Ultimate Guide to React Native Optimization" (2025) across JavaScript, Native, and Bundling layers, scans the codebase for symptoms, and dispatches to the specific `rn-perf-*` skill that owns each fix. Trigger whenever the user says "audit my RN app", "is my app optimized", "perf review", "performance health check", "find perf issues", "what's slow in my app", "check React Native performance end-to-end", or asks for an overall review against the React Native Optimization book — even without naming specific tools or skills. This is the entry-point orchestrator that surveys all 29 topic skills plus the 6 operational/tool-driver skills and produces a prioritized punch list.
+description: Use when the user wants a comprehensive performance audit of a React Native app — walks the full optimization checklist from Callstack's "The Ultimate Guide to React Native Optimization" (2025) across JavaScript, Native, and Bundling layers, scans the codebase for symptoms, and dispatches to the specific `rn-perf-*` skill that owns each fix. Trigger whenever the user says "audit my RN app", "is my app optimized", "perf review", "performance health check", "find perf issues", "what's slow in my app", "check React Native performance end-to-end", or asks for an overall review against the React Native Optimization book — even without naming specific tools or skills. This is the entry-point orchestrator that surveys all 36 topic skills plus the 6 operational/tool-driver skills and produces a prioritized punch list.
 ---
 
 # Full React Native Performance Audit (Orchestrator)
@@ -11,7 +11,7 @@ The user has a React Native app and wants to know what's slow, what to fix first
 Also triggers on vague-but-broad asks: "make my app faster", "perf review before launch", "find low-hanging fruit", "audit before I take on this contract", "is this RN app healthy?".
 
 ## What this skill does (single responsibility)
-**Orchestrates** a full-codebase audit and **dispatches** to the 35 specialized `rn-perf-*` skills. Detects symptoms and prioritizes findings; does **not** apply fixes itself. Each fix is delegated:
+**Orchestrates** a full-codebase audit and **dispatches** to the 42 specialized `rn-perf-*` skills. Detects symptoms and prioritizes findings; does **not** apply fixes itself. Each fix is delegated:
 
 - Detected barrel exports → invoke [[rn-perf-avoid-barrel-exports]].
 - Detected `<ScrollView>` with `.map(` rendering many items → invoke [[rn-perf-virtualized-lists]].
@@ -100,7 +100,21 @@ For each row, run the detection, capture evidence, and dispatch to the listed sk
 | 28 | Assets bundled via JS `require()` instead of platform asset catalogs | `find . -name '*@2x.png' -o -name '*@3x.png' -not -path '*/node_modules/*' -not -path '*/ios/*/Images.xcassets/*'` | [[rn-perf-native-assets-folder]] |
 | 29 | Android JS bundle compressed (Hermes can't mmap) | `grep -E "noCompress\|androidResources" android/app/build.gradle` shows no `noCompress 'bundle'` | [[rn-perf-disable-bundle-compression]] |
 
-### Phase 5 — Tool-driver skills (referenced as needed)
+### Phase 5 — Data, media, and UX audit (7 checks → 7 skills)
+
+| # | Check | Detection | If found, invoke |
+|---|---|---|---|
+| 30 | Remote images slow, memory spikes while scrolling photos | `grep -E '"expo-image"\|"react-native-fast-image"' package.json` empty while `<Image` usage is high; large GIFs in assets; full-resolution photos in list rows | [[rn-perf-images]] |
+| 31 | Screen transitions stutter or screens stay mounted offscreen | `"@react-navigation/stack"` in package.json instead of `native-stack`; no `freezeOnBlur` / `enableFreeze`; heavy fetch+render in the first commit of a pushed screen | [[rn-perf-navigation-transitions]] |
+| 32 | Request waterfalls, refetch storms, multi-MB JSON parses | Sequential dependent `await`s in screen-mount effects; no `@tanstack/react-query` (or `staleTime: 0` everywhere); unpaginated list endpoints | [[rn-perf-network-data-layer]] |
+| 33 | Eager SDK init on the startup path | `Sentry.init`, analytics, Firebase, feature-flag clients running at module top level in `index.js` / `App.tsx`; long root provider stacks | [[rn-perf-startup-deferred-init]] |
+| 34 | Slow persistence on hot or startup paths | `@react-native-async-storage/async-storage` backing redux-persist or query hydration; giant JSON blobs parsed at launch; no MMKV/SQLite | [[rn-perf-storage]] |
+| 35 | No real-user performance telemetry | None of `@sentry/react-native` tracing, `@react-native-firebase/perf`, or `react-native-performance` reporting in release builds | [[rn-perf-production-monitoring]] |
+| 36 | Bare spinners, layout shift, no perceived-speed work | Spinner-only loading states on key screens; content jumps when data arrives; no optimistic updates for instant actions | [[rn-perf-perceived-performance]] |
+
+Check 36 is deliberately last: perceived-performance work only enters the punch list after the measured fixes above are applied or ruled out.
+
+### Phase 6 — Tool-driver skills (referenced as needed)
 These aren't audit checks — they're how-to skills you cite when the audit recommends a tool action:
 
 - [[rn-perf-react-native-devtools]] — attach DevTools, switch panels (referenced by 1, 3, 4, 5, 6, 7, 8)
@@ -112,7 +126,7 @@ Optional accelerators:
 - [[rn-perf-simulator-tooling]] — MiniSim / Expo Orbit / Tophat for dev-loop speed
 - [[rn-perf-flashlight-android]] — CI-grade Android perf scoring (referenced by 2 if Android)
 
-### Phase 6 — Output a prioritized punch list
+### Phase 7 — Output a prioritized punch list
 
 Produce a table sorted by impact:
 
@@ -131,7 +145,7 @@ Produce a table sorted by impact:
 - **P2** — structural refactor with clear benefit (atomic state, virtualized lists where ScrollView is used).
 - **P3** — advanced / context-specific (Re.Pack, remote code loading, custom native module rewrite).
 
-**Don't dump all 35** — pick the **top 3–5 by impact** and hand off the top P0 finding to its skill first.
+**Don't dump all 42** — pick the **top 3–5 by impact** and hand off the top P0 finding to its skill first.
 
 ## Code patterns / detection snippets
 
@@ -195,6 +209,26 @@ find . -name '*@2x.png' -o -name '*@3x.png' 2>/dev/null \
 
 echo "=== Phase 4.29 — bundle compression on Android ==="
 grep -E "noCompress|androidResources" android/app/build.gradle 2>/dev/null || echo "Default (compressed)"
+
+echo "=== Phase 5.30 — image handling ==="
+grep -E '"expo-image"|"react-native-fast-image"' package.json || echo "Image library: core <Image> only"
+find assets src -iname '*.gif' 2>/dev/null | head -5
+
+echo "=== Phase 5.31 — navigation stack flavor ==="
+grep -E '"@react-navigation/(stack|native-stack)"|"react-native-screens"|"expo-router"' package.json
+grep -rnE "freezeOnBlur|enableFreeze" --include='*.tsx' --include='*.ts' src/ | head -5
+
+echo "=== Phase 5.32 — data fetching layer ==="
+grep -E '"@tanstack/react-query"|"swr"|"@apollo/client"' package.json || echo "Query cache layer: NOT installed"
+
+echo "=== Phase 5.33 — eager startup init ==="
+grep -nE "Sentry\.init|analytics\(|firebase" index.js App.tsx src/App.tsx 2>/dev/null | head -10
+
+echo "=== Phase 5.34 — storage engine ==="
+grep -E '"react-native-mmkv"|"@react-native-async-storage/async-storage"|"redux-persist"' package.json
+
+echo "=== Phase 5.35 — production perf telemetry ==="
+grep -E '"@sentry/react-native"|"@react-native-firebase/perf"|"react-native-performance"' package.json || echo "Production telemetry: NOT installed"
 ```
 
 Each section corresponds to a row in the audit tables above. Feed the output into the punch-list builder.
@@ -203,7 +237,7 @@ Each section corresponds to a row in the audit tables above. Feed the output int
 
 The audit is complete when:
 
-1. **All 29 checks have a status** — `OK`, `Skip (out-of-scope)`, or `Fix → <skill-name>`.
+1. **All 36 checks have a status** — `OK`, `Skip (out-of-scope)`, or `Fix → <skill-name>`.
 2. **Phase 1 baseline numbers are recorded**: JS FPS (from Perf Monitor), TTI cold-start median, APK/IPA install size, JS bundle size. If any is missing, that's itself a P0 finding (you can't optimize what you don't measure).
 3. **Punch list exists** with at least one P0/P1 or an explicit "no findings above P2".
 4. **Top finding is handed off** — the conversation pivots to invoking the named skill (e.g., `/rn-perf-r8-android-shrink`).
@@ -213,7 +247,7 @@ The audit is complete when:
 - **RN version gating**: many checks are no-ops on old versions. Concurrent React needs ≥ 0.69 + New Arch; React Compiler is most useful on ≥ 0.78 (React 19); MMKV/Reanimated 3 want New Arch. State each gate when reporting.
 - **Expo Go**: cannot ship native-level fixes (R8, custom modules, bundle compression). Flag those findings as "requires dev-client/EAS Build" instead of P0.
 - **JSC instead of Hermes**: invalidates [[rn-perf-disable-bundle-compression]] (no mmap fast-path) and *increases* the urgency of [[rn-perf-remote-code-loading]]. Always check the engine.
-- **Don't recommend everything at once**: a 35-item backlog overwhelms. Surface the top 3–5 by impact; let the user pull more on demand.
+- **Don't recommend everything at once**: a 42-item backlog overwhelms. Surface the top 3–5 by impact; let the user pull more on demand.
 - **Symptom-driven vs proactive**: if the user came in with "typing is laggy", run Phase 2 first and prioritize [[rn-perf-uncontrolled-components]] / [[rn-perf-concurrent-react]] / [[rn-perf-profile-js-react]] before the full sweep.
 - **iOS-only or Android-only apps**: skip the other platform's bundling chapters (R8 is Android; App Thinning is iOS).
 - **Monorepo gotcha**: scan from the *app* package, not the workspace root, or the grep counts will be polluted by libraries the app doesn't ship.
@@ -223,7 +257,7 @@ The audit is complete when:
 ## References
 
 - Book: "The Ultimate Guide to React Native Optimization" (2025), Callstack — the complete optimization checklist this audit walks. TOC: Preface (p. 4) · How to Read (p. 5) · Why Performance Matters (p. 7); Part 1 JavaScript (chapters at pp. 14, 21, 24, 30, 34, 42, 46, 52, 59); Part 2 Native (pp. 67, 76, 85, 91, 99, 111, 119, 123, 128); Part 3 Bundling (pp. 142, 148, 154, 156, 159, 163, 167, 170, 175).
-- The 35 sibling `rn-perf-*` skills shipped in this plugin's `skills/` directory — invoke them by name via the Skill tool.
+- The 42 sibling `rn-perf-*` skills shipped in this plugin's `skills/` directory — invoke them by name via the Skill tool.
 
 ## Related skills
 
@@ -264,7 +298,16 @@ The audit is complete when:
 - [[rn-perf-native-assets-folder]] — asset catalogs / `drawable-*-v4` density routing
 - [[rn-perf-disable-bundle-compression]] — `noCompress 'bundle'` Gradle flag
 
-**Phase 5 — Tool drivers (cited as needed)**
+**Phase 5 — Data, media, and UX**
+- [[rn-perf-images]] — expo-image caching, recycling, bitmap memory
+- [[rn-perf-navigation-transitions]] — native-stack, `freezeOnBlur`, post-transition work
+- [[rn-perf-network-data-layer]] — waterfalls, TanStack Query, payload cost
+- [[rn-perf-startup-deferred-init]] — defer SDK init and module work out of startup
+- [[rn-perf-storage]] — MMKV / SQLite / startup-path persistence
+- [[rn-perf-production-monitoring]] — real-user TTI, slow frames, release health
+- [[rn-perf-perceived-performance]] — skeletons, optimistic UI, latency masking
+
+**Phase 6 — Tool drivers (cited as needed)**
 - [[rn-perf-react-native-devtools]] — DevTools attach + panel navigation
 - [[rn-perf-xcode-instruments]] — Instruments call-tree reading on iOS
 - [[rn-perf-android-studio-profiler]] — AS Profiler tasks + Layout Inspector

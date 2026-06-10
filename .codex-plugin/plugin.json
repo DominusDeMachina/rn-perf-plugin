@@ -1,7 +1,7 @@
 {
   "name": "rn-perf",
   "version": "0.1.0",
-  "description": "React Native performance toolkit: 36 Codex skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, startup, app-size optimization, and Android release compatibility.",
+  "description": "React Native performance toolkit: 43 Codex skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, images, navigation, data fetching, storage, startup, perceived performance, production monitoring, app-size optimization, and Android release compatibility.",
   "author": {
     "name": "Gennadiy Furduy",
     "email": "Gfurduy@labforty.com"
@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "RN Perf",
     "shortDescription": "React Native performance audit toolkit",
-    "longDescription": "RN Perf bundles Codex skills for auditing and improving React Native performance across measurement, JavaScript rendering, bottom sheets, native profiling, memory, bundle size, startup time, Android release compatibility, and tooling.",
+    "longDescription": "RN Perf bundles Codex skills for auditing and improving React Native performance across measurement, JavaScript rendering, bottom sheets, images, navigation, data fetching, storage, native profiling, memory, bundle size, startup time, perceived performance, production monitoring, Android release compatibility, and tooling.",
     "developerName": "Gennadiy Furduy",
     "category": "Developer Tools",
     "capabilities": [

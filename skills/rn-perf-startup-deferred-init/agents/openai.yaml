@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Startup Deferred Init"
+  short_description: "Defer init work out of app startup"
+  default_prompt: "Use $rn-perf-startup-deferred-init to audit the startup path and defer non-critical initialization."

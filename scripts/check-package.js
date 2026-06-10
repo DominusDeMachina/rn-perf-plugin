@@ -26,7 +26,10 @@ assert(gemini.version === pkg.version, "Gemini extension version must match pack
 assert(marketplace.plugins.length === 1, "Claude npm marketplace must contain one plugin");
 assert(marketplace.plugins[0].source.package === pkg.name, "Claude marketplace npm package must match package name");
 assert(marketplace.plugins[0].source.version === pkg.version, "Claude marketplace npm version must match package version");
-assert(skillNames.length === 36, `expected 36 skills, found ${skillNames.length}`);
+assert(skillNames.length === 43, `expected 43 skills, found ${skillNames.length}`);
+assert(fs.existsSync(path.join(root, "hooks", "hooks.json")), "hooks/hooks.json is missing");
+assert(fs.existsSync(path.join(root, "hooks", "rn-perf-mandate.js")), "hooks/rn-perf-mandate.js is missing");
+assert(claude.hooks === "./hooks/hooks.json", "Claude plugin must reference ./hooks/hooks.json");
 
 for (const skillName of skillNames) {
   const skillPath = path.join(root, "skills", skillName, "SKILL.md");

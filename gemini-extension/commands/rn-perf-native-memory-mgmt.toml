@@ -50,7 +50,7 @@ Swift normally manages ARC for you. `Unmanaged<T>` lets you cross over to C/C++ 
 | `.takeUnretainedValue()` | no change |
 | `.toOpaque()` | raw pointer for C interop |
 
-**Rule: match `passRetained` with `takeRetainedValue`, and `passUnretained` with `takeUnretainedValue`. Mismatching crashes.**
+**Rule: match `passRetained` with `takeRetainedValue`, and `passUnretained` with `takeUnretainedValue`. Decrementing below 0 (`passUnretained` → `takeRetainedValue`) crashes; the reverse mismatch over-retains and leaks.**
 
 ## Workflow
 
@@ -139,7 +139,7 @@ Verification is operational, not theoretical — apply a pattern from this skill
 - `std::unique_ptr` is **move-only**. Passing by value transfers ownership; pass by `const&` to borrow without transferring.
 - In Swift closures, use `[weak self]` to avoid the classic closure-retains-self cycle.
 - **GC pauses can look like perf bugs.** Periodic UI hitches under Hades (Hermes' GC) are GC pressure, not a leak per se.
-- **`Unmanaged` rules summary**: retained ↔ retained, unretained ↔ unretained. Mismatched mismatches *crash*.
+- **`Unmanaged` rules summary**: retained ↔ retained, unretained ↔ unretained. Under-retaining (refcount below 0) *crashes*; over-retaining leaks.
 
 ## References
 - Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Understanding Native Memory Management", pp. 99–110.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Images"
+  short_description: "Optimize React Native image loading"
+  default_prompt: "Use $rn-perf-images to diagnose and fix slow or memory-hungry images in a React Native app."

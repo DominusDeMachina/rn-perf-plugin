@@ -81,8 +81,8 @@ Save/load file suffixes per panel:
 - The React Profiler `.json` is a custom format. Don't try to load it in Chrome DevTools; load it back into the RN DevTools Profiler tab.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile JS and React Code", pp. 14–19.
-- Book: same title, "How to Hunt JS Memory Leaks", pp. 27–35.
+- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile JS and React Code", pp. 14–20.
+- Book: same title, "How to Hunt JS Memory Leaks", pp. 24–29.
 - Official docs: https://reactnative.dev/docs/react-native-devtools
 - Chrome DevTools: https://developer.chrome.com/docs/devtools
 - Chrome DevTools Protocol: https://chromedevtools.github.io/devtools-protocol/

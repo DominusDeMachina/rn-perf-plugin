@@ -14,7 +14,7 @@ Gemini CLI appends the user's raw command after this prompt when arguments are p
 The user has a large Android APK/AAB and wants to enable code and resource shrinking, or is hitting reflection-related crashes only in release builds (`NoClassDefFoundError`, `ClassNotFoundException`) and needs ProGuard/R8 keep-rules.
 
 ## What this skill does (single responsibility)
-Enable R8 minification, obfuscation, and resource shrinking on the Android `release` build type, add keep-rules for libraries that use reflection, and measure the resulting size delta. Does **not** cover JS-bundle minification (Metro handles that via Terser when `--minify true`), iOS shrinking (handled by Xcode bitcode + App Thinning — see [[rn-perf-analyze-app-bundle]]), or asset-density shrinking (see [[rn-perf-native-assets-folder]]).
+Enable R8 minification, obfuscation, and resource shrinking on the Android `release` build type, add keep-rules for libraries that use reflection, and measure the resulting size delta. Does **not** cover JS-bundle minification (Metro handles that via Terser when `--minify true`), iOS shrinking (handled by App Thinning — see [[rn-perf-analyze-app-bundle]]), or asset-density shrinking (see [[rn-perf-native-assets-folder]]).
 
 ## Workflow
 1. Open `android/app/build.gradle`.
@@ -82,7 +82,7 @@ General-purpose keep-rule template for any reflection-driven native module:
 - **Obfuscation is on by default with `minifyEnabled`.** Class/method names become `a`, `b`, `c`. Upload `mapping.txt` to your crash reporter per release, or set `-dontobfuscate` if you don't need it.
 - **Hermes/JSC bridge classes** must not be stripped. RN's default ProGuard rules at `proguard-android-optimize.txt` already keep them — don't override unless you know what you're doing.
 - **Reflection blind spots**: code called via `Class.forName(...)` or annotation processing disappears silently. Symptom: feature works in debug but `NoClassDefFoundError` in release. Fix: add keep-rule.
-- `shrinkResources` **does not affect React Native image assets** — Metro packs those into `drawable-*-v4` folders (see [[rn-perf-native-assets-folder]]). R8's resource shrinker targets Android XML resources (layouts/strings/drawable XML).
+- `shrinkResources` performs three optimizations (book p. 168): merges duplicate resources, optimizes PNG files by reducing color depth and applying lossless compression, and processes vector drawables — so it can also touch Metro-packed images in `drawable-*-v4` folders (see [[rn-perf-native-assets-folder]]).
 - Build time goes up 10–60s on release. Acceptable.
 - The default RN template already has the `enableProguardInReleaseBuilds` flag, usually `false`. Flipping it to `true` is often the entire change.
 - `useLegacyPackaging` and similar flags interact subtly with R8 + Hermes packaging — leave at RN template defaults unless you have a specific reason.

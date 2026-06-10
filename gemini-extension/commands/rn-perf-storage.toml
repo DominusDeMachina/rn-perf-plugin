@@ -1,0 +1,142 @@
+description = "Use when a React Native app has slow local persistence — AsyncStorage on the startup path, slow redux-persist rehydration, `react-native-mmkv` adoption or v2-to-v3 New Architect..."
+prompt = '''
+# RN Perf Skill: rn-perf-storage
+
+Use when: Use when a React Native app has slow local persistence — AsyncStorage on the startup path, slow redux-persist rehydration, `react-native-mmkv` adoption or v2-to-v3 New Architecture questions, `getItem`/`setItem` latency, giant JSON blobs parsed at launch, SQLite choices (op-sqlite, expo-sqlite, WatermelonDB), TanStack Query cache persistence, or tokens stored insecurely in AsyncStorage/MMKV. Picks and tunes the right storage engine (MMKV, SQLite, secure storage), migrates off AsyncStorage, and keeps persistence off the TTI-critical path.
+
+Follow the skill instructions below. If another RN Perf skill is referenced as `[[skill-name]]`, use that skill's command when it is available, or apply the referenced skill from the package source if you have it loaded.
+
+Gemini CLI appends the user's raw command after this prompt when arguments are provided.
+
+# Local Storage Performance
+
+## When to use
+The user reports slow app startup traced to storage reads, redux-persist or query-cache rehydration delays, jank when reading/writing persisted values, asks whether to use AsyncStorage vs MMKV vs SQLite, wants to migrate AsyncStorage to MMKV, or is persisting a growing JSON blob that gets parsed in full at every launch.
+
+## What this skill does (single responsibility)
+Optimizes how data is persisted and read on-device: choosing the right engine (MMKV for key-value, SQLite for relational/large datasets, Keychain/Keystore for secrets), migrating off AsyncStorage, and trimming rehydration so storage stops taxing startup. Out of scope: what to fetch and cache from the network ([[rn-perf-network-data-layer]]), the broader strategy of deferring non-critical work at launch ([[rn-perf-startup-deferred-init]]), and TTI measurement methodology ([[rn-perf-measure-tti]]).
+
+## Workflow
+1. **Measure a baseline.** If the complaint is startup, measure TTI on the same device and release-mode build you will re-test later ([[rn-perf-measure-tti]]). Wrap suspect storage calls in `performance.now()` timing or check a profile for `getItem`/`multiGet` time. Without a number, you cannot prove the storage change helped.
+2. **Check installed versions and architecture.** Read `package.json` for `react-native-mmkv`, `@react-native-async-storage/async-storage`, `redux-persist`, and SQLite libs. `react-native-mmkv` v3 requires the New Architecture (and RN 0.74+); on Old Architecture stay on v2. Confirm `newArchEnabled` in `gradle.properties` / `Podfile.properties.json` (Expo: `app.json`) before recommending a major. Any new storage package is a supply-chain change — pin it and review it like one.
+3. **Classify the data.** Small key-value flags/preferences → MMKV (or AsyncStorage if rarely read and off the hot path). Relational, queryable, or large datasets → SQLite. Tokens/secrets → Keychain/Keystore. A single growing JSON blob parsed entirely at startup is the anti-pattern to break up.
+4. **Move hot-path reads to MMKV.** MMKV is synchronous JSI access, roughly 30x faster than AsyncStorage, and removes the async round-trip that serializes startup reads.
+5. **Migrate AsyncStorage → MMKV** with a one-time first-launch migration (pattern below), then remove AsyncStorage from the hot path.
+6. **Tame rehydration.** For redux-persist or a TanStack Query persister, whitelist only the slices/queries the first screen needs, throttle writes, and let everything else load lazily.
+7. **Move relational/large data to SQLite.** Use `op-sqlite` or `expo-sqlite` for query-driven access; WatermelonDB for sync-heavy offline-first apps with thousands of records and lazy loading.
+8. **Route secrets correctly.** Tokens, refresh tokens, and keys go to `react-native-keychain` or `expo-secure-store`. MMKV's `encryptionKey` stored in JS code is obfuscation, not a security boundary.
+9. **Re-measure.** Repeat step 1 on the same device/build/interaction and compare TTI and per-read timings before merging.
+
+## Code patterns
+
+MMKV basics — synchronous, no `await` (v2 and v3 share this API):
+
+```ts
+import { MMKV } from 'react-native-mmkv';
+
+export const storage = new MMKV({ id: 'app' });
+
+storage.set('onboardingDone', true);
+const done = storage.getBoolean('onboardingDone'); // sync, safe at startup
+```
+
+One-time AsyncStorage → MMKV migration on first launch:
+
+```ts
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from './storage';
+
+const MIGRATION_FLAG = 'asyncstorage-migrated';
+
+export async function migrateFromAsyncStorage(): Promise<void> {
+  if (storage.getBoolean(MIGRATION_FLAG)) return;
+  const keys = await AsyncStorage.getAllKeys();
+  const entries = await AsyncStorage.multiGet(keys);
+  for (const [key, value] of entries) {
+    if (value != null) storage.set(key, value);
+  }
+  storage.set(MIGRATION_FLAG, true);
+  await AsyncStorage.clear(); // optional: reclaim space after verifying
+}
+```
+
+Drop-in adapter so redux-persist (or any `AsyncStorage`-shaped consumer) uses MMKV:
+
+```ts
+import { Storage } from 'redux-persist';
+
+export const mmkvStorage: Storage = {
+  setItem: (key, value) => { storage.set(key, value); return Promise.resolve(true); },
+  getItem: (key) => Promise.resolve(storage.getString(key) ?? null),
+  removeItem: (key) => { storage.delete(key); return Promise.resolve(); },
+};
+```
+
+redux-persist: whitelist and throttle instead of rehydrating the world:
+
+```ts
+const persistConfig = {
+  key: 'root',
+  storage: mmkvStorage,
+  whitelist: ['auth', 'settings'], // only what the first screen needs
+  throttle: 1000,                  // batch writes, don't hammer storage per action
+};
+```
+
+SQLite for query-driven data instead of one giant JSON blob:
+
+```ts
+import { open } from '@op-engineering/op-sqlite';
+
+const db = open({ name: 'app.db' });
+// Read only what the screen needs — not JSON.parse(5 MB) at launch
+const { rows } = db.execute(
+  'SELECT id, title FROM articles ORDER BY created_at DESC LIMIT 20'
+);
+```
+
+Secrets go to the OS secure store, never MMKV/AsyncStorage:
+
+```ts
+import * as Keychain from 'react-native-keychain';
+
+await Keychain.setGenericPassword('auth', refreshToken, {
+  accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK,
+});
+```
+
+## Verification
+- TTI on the same device/build improved versus the recorded baseline after moving startup reads to MMKV or trimming rehydration.
+- Timed storage reads drop from milliseconds-with-await (AsyncStorage) to sub-millisecond synchronous MMKV calls.
+- Migration runs exactly once: flag set, values present in MMKV, second launch skips the migration body.
+- redux-persist rehydrates only whitelisted slices (log the rehydrated state shape) and `REHYDRATE` fires measurably sooner.
+- Profiler no longer shows a large `JSON.parse` during launch for the former mega-blob.
+- A device filesystem/security check shows tokens in Keychain/Keystore, not in MMKV or AsyncStorage files.
+
+## Edge cases & gotchas
+- `react-native-mmkv` v3 is New Architecture only; installing it on an Old Architecture app fails at build/runtime. Check architecture before suggesting the upgrade, and don't paste v3 install steps into a v2 app.
+- AsyncStorage is genuinely fine for small values read rarely and off the startup path — don't migrate for its own sake; migrate what measurement shows is hot.
+- MMKV loads its file into memory; storing multi-MB blobs in MMKV trades startup I/O for memory pressure ([[rn-perf-hunt-js-memory-leaks]] if memory grows). Big data belongs in SQLite.
+- Android AsyncStorage has a 6 MB default cursor limit — apps near it are already in "should be SQLite" territory.
+- After migrating, leftover AsyncStorage data still ships in backups until cleared; clear only after verifying the migration on real devices.
+- WatermelonDB shines at scale and sync but adds schema/model ceremony — overkill for a settings screen.
+- For TanStack Query persistence specifics (`maxAge`, `shouldDehydrateQuery` whitelisting), see [[rn-perf-network-data-layer]]; the storage half is the MMKV adapter above.
+- If a heavy web-oriented SDK is dragging in `localStorage` polyfills, see [[rn-perf-rn-sdks-over-web]].
+- Resist wrapping every read in `useMemo`/context caching speculatively — synchronous MMKV reads are cheap; only optimize what a profile shows.
+
+## References
+- react-native-mmkv: https://github.com/mrousavy/react-native-mmkv
+- MMKV migration guide (AsyncStorage): https://github.com/mrousavy/react-native-mmkv/blob/main/docs/MIGRATE_FROM_ASYNC_STORAGE.md
+- op-sqlite: https://github.com/OP-Engineering/op-sqlite
+- expo-sqlite: https://docs.expo.dev/versions/latest/sdk/sqlite/
+- WatermelonDB: https://watermelondb.dev/docs
+- react-native-keychain: https://github.com/oblador/react-native-keychain
+- expo-secure-store: https://docs.expo.dev/versions/latest/sdk/securestore/
+
+## Related skills
+- [[rn-perf-startup-deferred-init]] - defer non-critical storage work off the launch path
+- [[rn-perf-network-data-layer]] - what gets cached and persisted from the network
+- [[rn-perf-measure-tti]] - quantify the startup cost of storage before/after
+- [[rn-perf-hunt-js-memory-leaks]] - memory pressure from oversized in-memory stores
+- [[rn-perf-rn-sdks-over-web]] - replacing web SDKs that bring storage polyfills
+'''

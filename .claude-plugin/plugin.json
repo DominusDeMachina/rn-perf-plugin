@@ -1,7 +1,7 @@
 {
   "name": "rn-perf",
   "version": "0.1.0",
-  "description": "React Native performance toolkit: 36 skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, startup, app-size optimization, and Android release compatibility.",
+  "description": "React Native performance toolkit: 43 skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, images, navigation, data fetching, storage, startup, perceived performance, production monitoring, app-size optimization, and Android release compatibility.",
   "author": {
     "name": "Gennadiy Furduy",
     "email": "Gfurduy@labforty.com"
@@ -13,5 +13,6 @@
     "profiling",
     "mobile",
     "bundle-size"
-  ]
+  ],
+  "hooks": "./hooks/hooks.json"
 }

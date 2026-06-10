@@ -112,7 +112,7 @@ Three RN-specific lanes that matter:
 ## Verification
 - The loaded trace title (top-left) should show the filename and a size matching the file on disk.
 - An RN trace should contain `mqt_v_js`, `mqt_v_native`, and `main` lanes under the `com.sampleapp` group. Missing `mqt_v_js` = non-Hermes build.
-- Run the example SQL query — should return up to 10 rows ordered by duration.
+- Run the example SQL query — should return up to 20 rows ordered by duration.
 - Share link round-trip: open the returned URL in Incognito — the trace must load identically.
 
 ## Edge cases & gotchas

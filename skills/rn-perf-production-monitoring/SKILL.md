@@ -1,0 +1,134 @@
+---
+name: rn-perf-production-monitoring
+description: Use when a React Native app needs real-user performance monitoring or field metrics diverge from lab numbers — `@sentry/react-native` tracing, appStart spans, slow frames, frozen frames, `tracesSampleRate`, `profilesSampleRate`, release health, `@react-native-firebase/perf`, `react-native-performance` custom marks, Android vitals ANR rate, Play Console excessive slow frames, Xcode Organizer hang rate, MetricKit, p90 cold-start regressions, or per-release perf budgets. Sets up production RUM with Sentry/Firebase/custom markers, store vitals as ground truth, and release-over-release regression alerts.
+---
+
+# Production Performance Monitoring
+
+## When to use
+The user wants to know how the app performs for real users (not on their dev machine), suspects field performance differs from lab measurements, needs to catch perf regressions per release, asks about Sentry/Firebase performance SDKs, store vitals (ANR rate, hang rate, slow frames), or wants alerts on cold-start TTI and frame-rate budgets in production.
+
+## What this skill does (single responsibility)
+Instruments a React Native app for real-user monitoring: Sentry or Firebase Performance tracing, custom `react-native-performance` marks for business-critical flows, store vitals dashboards, and per-release budgets/alerts on p50/p90 startup and slow-frame rate. Out of scope: lab measurement and root-cause profiling — when production data points at a regression, reproduce locally with [[rn-perf-measure-tti]], [[rn-perf-profile-js-react]], or [[rn-perf-profile-native]] to find the cause.
+
+## Workflow
+1. **Establish why field data is needed.** Lab numbers diverge from production: device spread (your dev phone is faster than the p50 user device), cold caches and first-install JIT/dex states, real cellular networks, background pressure, and OS-version spread. A lab TTI of 1.2s can be a field p90 of 4s.
+2. **Pick the monitoring stack.** Sentry (`@sentry/react-native`) if you already use it for crashes — tracing, profiling, and release health come from one SDK. Firebase Performance (`@react-native-firebase/perf`) if you are on the Firebase stack — automatic app-start and network traces plus custom traces. Custom `react-native-performance` marks reported to your own analytics if you need full control or a vendor-free pipeline.
+3. **Treat the SDK as a supply-chain addition.** Review the package, pin the version, and measure its own startup overhead before/after install with [[rn-perf-measure-tti]] — monitoring SDKs initialize at app start by design.
+4. **Initialize early, sample deliberately.** Call `Sentry.init` at the top of the entry file so cold appStart spans are captured. Set `tracesSampleRate`/`profilesSampleRate` below 1.0 in production: sampling controls vendor cost and on-device overhead, but too-low rates hide regressions that only hit rare low-end devices.
+5. **Attach release identity.** Set `release` and `dist` matching your build, and upload source maps (`sentry-cli sourcemaps upload` or `npx sentry-expo-upload-sourcemaps`) per release — otherwise JS stack frames in traces are minified garbage.
+6. **Add custom marks around business-critical flows.** Instrument login→feed, search→results, checkout with `performance.mark`/`performance.measure` and ship the measures via a `PerformanceObserver`.
+7. **Wire store vitals as ground truth.** Android vitals in Play Console (ANR rate, excessive slow frames — these thresholds affect store ranking and visibility) and Xcode Organizer / MetricKit (hang rate, launch time percentiles). Vendor SDKs sample; the stores see everyone.
+8. **Set budgets and alerts per release.** Alert on p50/p90 cold-start TTI and slow-frame rate; compare release-over-release during staged rollout so a regression is caught at 10% rollout, not at 100%.
+9. **Close the loop.** When a release regresses, reproduce locally with the lab skills, fix, and re-measure — production changes still follow measure → fix → re-measure.
+
+## Code patterns
+
+Sentry tracing with app start, frames, and navigation instrumentation:
+
+```tsx
+// index.js — init before anything else so cold start is captured
+import * as Sentry from '@sentry/react-native';
+
+const navigationIntegration = Sentry.reactNavigationIntegration({
+  enableTimeToInitialDisplay: true,
+});
+
+Sentry.init({
+  dsn: SENTRY_DSN,
+  release: 'com.example.app@1.42.0+1042', // match build identity
+  dist: '1042',
+  environment: __DEV__ ? 'development' : 'production',
+  tracesSampleRate: 0.2,      // % of sessions with performance traces
+  profilesSampleRate: 0.1,    // % of traced sessions also profiled
+  enableAppStartTracking: true,   // cold/warm appStart spans
+  enableNativeFramesTracking: true, // slow & frozen frame counts per span
+  enableStallTracking: true,
+  integrations: [navigationIntegration],
+});
+```
+
+```tsx
+// Register the navigation container so screen transactions are created
+<NavigationContainer
+  ref={navigationRef}
+  onReady={() => navigationIntegration.registerNavigationContainer(navigationRef)}
+>
+```
+
+Firebase Performance custom trace:
+
+```tsx
+import perf from '@react-native-firebase/perf';
+
+const trace = await perf().startTrace('login_to_feed');
+trace.putAttribute('auth_method', 'oauth');
+await loginAndLoadFeed();
+trace.putMetric('feed_items', feedItems.length);
+await trace.stop();
+```
+
+Custom marks with `react-native-performance` reported to analytics:
+
+```tsx
+import performance, { PerformanceObserver } from 'react-native-performance';
+
+new PerformanceObserver((list) => {
+  list.getEntries().forEach((entry) => {
+    analytics.track('perf_measure', { name: entry.name, duration: entry.duration });
+  });
+}).observe({ entryTypes: ['measure'] });
+
+performance.mark('loginSubmit');
+// ...after feed is interactive:
+performance.measure('login_to_feed', 'loginSubmit');
+```
+
+Filter non-production data out of percentiles:
+
+```tsx
+Sentry.init({
+  // ...
+  environment: __DEV__ ? 'development' : isTestFlight() ? 'staging' : 'production',
+  beforeSendTransaction: (tx) => (__DEV__ ? null : tx),
+});
+```
+
+## Verification
+- Sentry/Firebase dashboard shows cold and warm appStart spans with realistic durations from real devices within a day of rollout.
+- Slow-frame and frozen-frame counts appear on screen transactions, broken down by device class.
+- Traces are symbolicated: JS frames show original file/line, confirming source maps uploaded for the exact `release`/`dist`.
+- Custom flow measures (e.g. `login_to_feed`) arrive in the analytics pipeline with sane p50/p90.
+- Android vitals and Xcode Organizer trends match the vendor SDK direction (absolute numbers will differ).
+- An alert fires when a canary release's p90 cold start regresses versus the previous release.
+- TTI measured before/after SDK install shows acceptable overhead (typically <50–100ms).
+
+## Edge cases & gotchas
+- **The monitor costs what it measures.** Monitoring SDKs add startup work; init early enough to capture app start, but quantify their overhead with a before/after TTI diff and watch SDK release notes for init-cost changes.
+- **Sampling too low hides tail regressions.** A regression on the 3% of users on low-end Androids disappears at `tracesSampleRate: 0.01`. Sample higher during staged rollout, lower at full volume.
+- **Dev/TestFlight pollution.** Simulator, `__DEV__`, TestFlight, and internal-track sessions skew percentiles badly (debug JS is 5–10x slower). Always tag `environment` and filter dashboards to production.
+- **Source maps are per-release.** Upload for every release and every CodePush/OTA bundle; a mismatch silently breaks symbolication for that release only.
+- **Store vitals lag and differ.** Play Console aggregates over ~28 days and uses its own slow-frame thresholds (>16ms slow, >700ms frozen); don't expect them to match Sentry's per-span numbers.
+- **Warm vs cold start conflation.** Averaging warm and cold starts together makes both meaningless; keep them as separate metrics (Sentry separates them automatically).
+- **expo-updates / OTA releases** need their own `release`/`dist` scheme so a JS-only update is distinguishable from the binary it shipped in.
+- **Fixes still follow the house rule.** Production data identifies *that* something regressed; reproduce and profile locally before changing code, then verify the fix lands in the next release's field metrics.
+
+## References
+- Sentry React Native performance: https://docs.sentry.io/platforms/react-native/tracing/
+- Sentry app start & frames instrumentation: https://docs.sentry.io/platforms/react-native/tracing/instrumentation/automatic-instrumentation/
+- Sentry React Navigation integration: https://docs.sentry.io/platforms/react-native/integrations/react-navigation/
+- Sentry source maps for React Native: https://docs.sentry.io/platforms/react-native/sourcemaps/
+- Firebase Performance Monitoring (RNFirebase): https://rnfirebase.io/perf/usage
+- react-native-performance: https://github.com/oblador/react-native-performance
+- Android vitals overview: https://developer.android.com/topic/performance/vitals
+- MetricKit: https://developer.apple.com/documentation/metrickit
+- Xcode Organizer metrics: https://developer.apple.com/documentation/xcode/analyzing-the-performance-of-your-shipping-app
+
+## Related skills
+- [[rn-perf-measure-tti]] - lab-measure startup to reproduce field TTI regressions and quantify SDK overhead
+- [[rn-perf-measure-js-fps]] - lab counterpart to production slow-frame metrics
+- [[rn-perf-profile-js-react]] - root-cause JS/React work behind a field regression
+- [[rn-perf-profile-native]] - root-cause native startup/frame cost flagged by vitals
+- [[rn-perf-startup-deferred-init]] - fix cold-start regressions surfaced by appStart spans
+- [[rn-perf-network-data-layer]] - act on slow network spans captured by tracing
+- [[rn-perf-full-app-test]] - pre-release lab sweep before staged rollout

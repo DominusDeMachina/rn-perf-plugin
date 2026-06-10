@@ -1,0 +1,120 @@
+---
+name: rn-perf-startup-deferred-init
+description: Use when a React Native app has slow startup, high TTI, a long splash screen, or a heavy bootstrap path around index.js / App.tsx top-level imports, eager SDK init (Sentry, Firebase, analytics, feature flags, ads), Metro `inlineRequires`, `React.lazy`, `InteractionManager.runAfterInteractions`, `react-native-bootsplash`, or `expo-splash-screen`. Audits the startup path and defers non-critical initialization and module evaluation until after the first interactive frame.
+---
+
+# Startup: Deferred Initialization
+
+## When to use
+The user reports slow cold start, a splash screen that lingers, TTI regressions, or asks how to defer SDK init, lazy-load screens, enable `inlineRequires`, or trim startup work. This is the fix-side counterpart to TTI measurement: you already know (or will first establish) that startup is slow, and the job is moving work out of the critical path.
+
+## What this skill does (single responsibility)
+Reduces TTI by auditing what runs before the first frame — top-level imports, module side effects, eager SDK initialization, root providers — and deferring everything non-critical to after the first interactive frame. Out of scope: measuring TTI itself ([[rn-perf-measure-tti]]), shrinking total bundle size ([[rn-perf-analyze-js-bundle]]), and native-side startup like bundle decompression ([[rn-perf-disable-bundle-compression]]).
+
+## Workflow
+1. **Measure a baseline first.** Instrument cold start with [[rn-perf-measure-tti]] markers (native start → JS init → first screen rendered) on a real low-end device in a release build. Every deferral below must be re-measured against this baseline on the same device, build type, and launch sequence — otherwise you can't tell which change paid off.
+2. **Check versions and config early.** Read `package.json` for the RN version, splash-screen library (`react-native-bootsplash` vs `expo-splash-screen`), and SDKs initialized at startup. Open `metro.config.js` and verify `inlineRequires` is enabled in `getTransformOptions` (default in modern templates, but legacy configs override it off). Treat any new package you add for this work as a supply-chain change: review it, pin it, and weigh it with [[rn-perf-library-size]] in mind.
+3. **Audit the bootstrap path.** Walk `index.js` → `App.tsx`: every top-level `import` and module side effect runs before the first frame. List each import's cost (require-time work, not just size) and classify it: needed for first frame, needed soon, or rarely needed.
+4. **Defer non-critical SDK init.** Keep crash reporting (Sentry) early — it must catch startup crashes — but move analytics, ads, feature-flag refresh (serve cached flags first), and secondary Firebase products to after the first interactive frame: `InteractionManager.runAfterInteractions` or the navigation container's `onReady`.
+5. **Lazy-require heavy modules.** With `inlineRequires` on, move imports of heavy, conditionally-used modules to `require()` at call time. Use `React.lazy` + `Suspense` for rarely-visited screens — on RN this defers *evaluation* of code already in the bundle, not a download.
+6. **Trim root providers.** Providers wrapping the root but consumed only deep in the tree (e.g., a payments context used on one screen) should wrap that subtree instead, so their init cost leaves the startup path.
+7. **Fix the splash handoff.** Hide the splash only when the first real screen has rendered (e.g., in that screen's first layout/effect) — never after a fixed timeout and never blocking on network.
+8. **Re-measure after every deferral.** One change at a time; keep the marker diffs in the PR. Don't add speculative memoization to startup components — only act on measured cost.
+
+## Code patterns
+
+Defer non-critical SDKs after first interactive frame (keep Sentry early):
+
+```tsx
+// index.js — crash reporting must precede app code to catch startup crashes
+import * as Sentry from '@sentry/react-native';
+Sentry.init({ dsn: DSN });
+
+// App.tsx
+useEffect(() => {
+  const task = InteractionManager.runAfterInteractions(() => {
+    require('./analytics').init();        // lazy require: evaluated now, not at startup
+    require('./ads').preload();
+  });
+  return () => task.cancel();
+}, []);
+```
+
+Defer until navigation is ready instead:
+
+```tsx
+<NavigationContainer
+  onReady={() => {
+    initFeatureFlags(); // refresh in background; first render used cached flags
+  }}
+>
+```
+
+Verify `inlineRequires` in `metro.config.js`:
+
+```js
+module.exports = {
+  transformer: {
+    getTransformOptions: async () => ({
+      transform: { experimentalImportSupport: false, inlineRequires: true },
+    }),
+  },
+};
+```
+
+Lazy screen for rarely-used features (defers JS evaluation, not download):
+
+```tsx
+const SettingsScreen = React.lazy(() => import('./screens/SettingsScreen'));
+
+<Suspense fallback={<ScreenSkeleton />}>
+  <SettingsScreen />
+</Suspense>
+```
+
+Splash handoff tied to first real render (`react-native-bootsplash`; `expo-splash-screen` is `SplashScreen.hideAsync()` with the same placement):
+
+```tsx
+function HomeScreen() {
+  useEffect(() => {
+    BootSplash.hide({ fade: true }); // first real screen is on glass — now hide
+  }, []);
+  // render from cached/local data; kick off network after, never before hide
+}
+```
+
+## Verification
+- TTI markers show the JS-init and first-screen segments shrinking versus the baseline, on the same device, release build, and cold-start procedure.
+- A startup CPU profile (or Perfetto trace) no longer shows deferred SDKs' init inside the pre-first-frame window.
+- Splash screen disappears the moment the first screen paints — no blank gap after splash, no splash lingering while the app is actually ready.
+- Sentry still reports a crash thrown deliberately in early bootstrap (test once in a staging build).
+- Lazily-required features still work on first use, with acceptable first-open latency.
+
+## Edge cases & gotchas
+- Deferring Sentry/Crashlytics too late loses exactly the crashes you most need — startup crashes. Init crash reporting first; defer everything else.
+- Lazy requires move cost to first use. Fine for a settings or debug screen; wrong for the home feed — deferring the home screen's data layer just moves the wait after the splash.
+- `inlineRequires` changes *when* module side effects run (first require instead of startup). Modules relying on import-order side effects (polyfills, global patches) can break — keep those eagerly imported in `index.js` or add them to the transformer's nonInlinedRequires list.
+- `runAfterInteractions` can be starved by long-running animations; if deferred init must happen within a bounded time, add a `setTimeout` fallback race.
+- Feature flags: blocking first render on a network flag fetch is a classic TTI killer — render with cached/default flags and refresh in the background.
+- `React.lazy` on RN does not code-split: Metro ships one bundle. If you need true on-demand download, that's [[rn-perf-remote-code-loading]].
+- Barrel imports defeat lazy requires — `require('./features')` pulling an index that imports everything evaluates the lot; see [[rn-perf-avoid-barrel-exports]].
+- Expo: `expo-splash-screen`'s `preventAutoHideAsync()` must be called before first render (module scope), or the splash auto-hides early.
+- Hermes evaluates bytecode lazily per function, but module-level side effects still run on require — deferring the require is what saves time, not Hermes alone.
+- Some SDKs (push notifications, deep-link handlers) must register before the OS delivers their launch event; check each SDK's docs before deferring it past `onReady`.
+- Cold start, warm start, and resume are different paths — measure cold start explicitly (kill the app and clear it from recents between runs).
+
+## References
+- Metro inlineRequires / RAM bundles docs: https://reactnative.dev/docs/ram-bundles-inline-requires
+- InteractionManager: https://reactnative.dev/docs/interactionmanager
+- react-native-bootsplash: https://github.com/zoontek/react-native-bootsplash
+- expo-splash-screen: https://docs.expo.dev/versions/latest/sdk/splash-screen/
+- Sentry React Native init: https://docs.sentry.io/platforms/react-native/
+- React.lazy: https://react.dev/reference/react/lazy
+
+## Related skills
+- [[rn-perf-measure-tti]] - establish the baseline and verify every deferral with the same markers
+- [[rn-perf-analyze-js-bundle]] - find which modules dominate startup evaluation cost
+- [[rn-perf-avoid-barrel-exports]] - barrel files silently re-eagerize lazy requires
+- [[rn-perf-tree-shaking]] - remove dead code so less ships and less evaluates
+- [[rn-perf-disable-bundle-compression]] - native-side Android startup win before JS even runs
+- [[rn-perf-storage]] - fast cached reads (MMKV) that let first render skip the network

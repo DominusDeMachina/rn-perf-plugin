@@ -28,6 +28,12 @@ Do not treat component count, tree depth, package count, or code shape as primar
 | TextInput lag | `rn-perf-uncontrolled-components` |
 | Native module is slow | `rn-perf-native-modules-faster` -> `rn-perf-threading-model` |
 | Android 16 KB page-size warning | `rn-perf-android-16kb-alignment` |
+| Images load slowly or spike memory | `rn-perf-images` |
+| Screen transitions stutter | `rn-perf-navigation-transitions` |
+| Spinners everywhere, slow data fetches | `rn-perf-network-data-layer` -> `rn-perf-perceived-performance` |
+| Startup blocked by eager SDK init | `rn-perf-measure-tti` -> `rn-perf-startup-deferred-init` |
+| Persisted-state reads slow startup | `rn-perf-storage` |
+| No visibility into real-user performance | `rn-perf-production-monitoring` |
 
 ## Review Guardrails
 
@@ -50,3 +56,8 @@ Re-check these before publishing a new plugin version or syncing from upstream:
 - Android Play requirements, especially target SDK and 16 KB page-size policy.
 - React Compiler package, lint, `target`, and React Native compatibility.
 - Re.Pack remote chunk resolver security guidance.
+- expo-image and react-native-fast-image maintenance status and cache APIs.
+- TanStack Query major-version API changes (`cacheTime` vs `gcTime`, persister packages).
+- react-native-screens / react-navigation major-version options (`freezeOnBlur`, native-stack).
+- react-native-mmkv major-version New Architecture requirements.
+- Sentry React Native and Firebase Performance SDK instrumentation APIs.

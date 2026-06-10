@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Network & Data Layer"
+  short_description: "Fix request waterfalls and caching"
+  default_prompt: "Use $rn-perf-network-data-layer to diagnose request waterfalls and optimize the data fetching layer."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Storage"
+  short_description: "Speed up local persistence"
+  default_prompt: "Use $rn-perf-storage to pick and tune fast local storage and keep persistence off the startup path."

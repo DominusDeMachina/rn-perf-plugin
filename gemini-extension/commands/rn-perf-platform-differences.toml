@@ -28,7 +28,7 @@ Swift Package Manager is **not yet supported** by React Native — never recomme
 
 ## Files to recognise
 
-**iOS:** `ios/Podfile`, `ios/Gemfile` (pins CocoaPods Ruby version), `ios/Pods/` (gitignored), `ios/*.xcworkspace` (open this, **not** `.xcodeproj`).
+**iOS:** `ios/Podfile`, top-level `Gemfile` (defines the CocoaPods version; comes by default with every new React Native project), `ios/Pods/` (gitignored), `ios/*.xcworkspace` (open this, **not** `.xcodeproj`).
 
 **Android:** `android/build.gradle` (project-level), `android/app/build.gradle` (app-level), `android/gradle.properties` (Hermes, ProGuard, `newArchEnabled`, `reactNativeArchitectures`), `android/gradlew`, `android/.gradle/` (cache, gitignored).
 
@@ -79,7 +79,7 @@ cd android && ./gradlew clean
 
 ## Verification
 - Run `npx react-native config` — lists all autolinked native modules; confirms the library's native side is picked up.
-- Confirm root contains: `Podfile`, `Gemfile`, `ios/Pods/`, `android/build.gradle`, `android/app/build.gradle`, `android/gradle.properties`, `gradlew`.
+- Confirm the project contains: `ios/Podfile`, top-level `Gemfile`, `ios/Pods/`, `android/build.gradle`, `android/app/build.gradle`, `android/gradle.properties`, `android/gradlew`.
 - After a dep change, rebuild both platforms (`npx react-native run-ios`, `npx react-native run-android`) and confirm resolution succeeds on each.
 
 ## Edge cases & gotchas

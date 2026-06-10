@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Navigation Transitions"
+  short_description: "Fix janky React Native screen transitions"
+  default_prompt: "Use $rn-perf-navigation-transitions to diagnose and fix janky screen transitions and slow navigation."

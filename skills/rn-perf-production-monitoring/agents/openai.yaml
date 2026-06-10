@@ -1,0 +1,4 @@
+interface:
+  display_name: "RN Perf: Production Monitoring"
+  short_description: "Monitor real-user React Native performance"
+  default_prompt: "Use $rn-perf-production-monitoring to set up real-user performance monitoring and per-release regression alerts."

@@ -1,6 +1,8 @@
 # rn-perf
 
-A multi-platform React Native performance plugin bundling 36 shared Agent Skills for Codex, Claude Code, and Gemini CLI, based on Callstack's *Ultimate Guide to React Native Optimization* (2025).
+A multi-platform React Native performance plugin bundling 43 shared Agent Skills for Codex, Claude Code, and Gemini CLI, based on Callstack's *Ultimate Guide to React Native Optimization* (2025) plus additional coverage for images, navigation, the data layer, storage, startup work deferral, perceived performance, and production monitoring.
+
+For non-performance best practices (testing, accessibility, security, error handling, OTA updates, deep linking), see the sibling [`rn-quality-plugin`](../rn-quality-plugin).
 
 The orchestrator skill `rn-perf-full-app-test` surveys a React Native app end to end and dispatches to the specific skill that owns each fix.
 
@@ -51,6 +53,12 @@ Use the platform's invocation syntax for these shared skill names:
 - `rn-perf-bottom-sheet` to fix bottom sheet jank.
 - `rn-perf-android-16kb-alignment` to check Android release compatibility.
 
+## Mandatory Use Via Claude Code Hook
+
+The package ships a Claude Code plugin hook in `hooks/` (referenced from `.claude-plugin/plugin.json`). When the plugin is installed and the working project depends on `react-native` or `expo`, the hook injects the RN Perf mandatory-skill policy into context at session start (including resume and post-compaction) and once more right before the first file edit of the session. Non-React-Native projects are untouched, and the hook never blocks a tool call.
+
+Codex and Gemini CLI have no hook mechanism, so the mandate travels differently there: add the `AGENTS.md` snippet from [CODEX_README.md](./CODEX_README.md) to the target project for Codex, and the generated `gemini-extension/GEMINI.md` context file carries the mandate for Gemini CLI automatically.
+
 ## Audit Guardrails
 
 Use the same loop for performance work: measure, optimize, re-measure, validate. Use the same device, release mode, interaction, and metric before and after a fix.
@@ -84,6 +92,12 @@ Security requirements:
 | TextInput lag | `rn-perf-uncontrolled-components` |
 | Native module is slow | `rn-perf-native-modules-faster` -> `rn-perf-threading-model` |
 | Android 16 KB page-size warning | `rn-perf-android-16kb-alignment` |
+| Images load slowly or spike memory | `rn-perf-images` |
+| Screen transitions stutter | `rn-perf-navigation-transitions` |
+| Spinners everywhere, slow data fetches | `rn-perf-network-data-layer` -> `rn-perf-perceived-performance` |
+| Startup blocked by eager SDK init | `rn-perf-measure-tti` -> `rn-perf-startup-deferred-init` |
+| Persisted-state reads slow startup | `rn-perf-storage` |
+| No visibility into real-user performance | `rn-perf-production-monitoring` |
 
 ## Skills
 
@@ -100,6 +114,7 @@ Security requirements:
 - **rn-perf-analyze-js-bundle** - source-map-explorer, Expo Atlas, and Rsdoctor
 - **rn-perf-analyze-app-bundle** - Spotify Ruler, App Thinning, and Emerge X-Ray
 - **rn-perf-library-size** - bundlephobia, pkg-size, and Import Cost
+- **rn-perf-production-monitoring** - Sentry/Firebase RUM, Android vitals, and Xcode Organizer
 
 ### JavaScript
 
@@ -111,6 +126,14 @@ Security requirements:
 - **rn-perf-animations-reanimated** - worklets and `InteractionManager`
 - **rn-perf-bottom-sheet** - `@gorhom/bottom-sheet` gestures, scrollables, and keyboard
 - **rn-perf-hunt-js-memory-leaks** - Hermes heap snapshots and retainers
+- **rn-perf-navigation-transitions** - native-stack, `freezeOnBlur`, and post-transition work
+- **rn-perf-perceived-performance** - skeletons, optimistic UI, and latency masking
+
+### Data And Media
+
+- **rn-perf-images** - expo-image caching, recycling, and bitmap memory
+- **rn-perf-network-data-layer** - request waterfalls, TanStack Query, and payload cost
+- **rn-perf-storage** - MMKV, SQLite, and startup-path persistence
 
 ### Native
 
@@ -131,6 +154,7 @@ Security requirements:
 - **rn-perf-disable-bundle-compression** - Hermes mmap via `noCompress`
 - **rn-perf-r8-android-shrink** - R8 minification and resource shrinking
 - **rn-perf-native-assets-folder** - per-density image delivery
+- **rn-perf-startup-deferred-init** - deferring SDK init and module work out of the startup path
 
 ### Tooling
 

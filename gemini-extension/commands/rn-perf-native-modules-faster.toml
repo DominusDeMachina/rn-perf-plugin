@@ -202,13 +202,13 @@ Android autolinks C++ Turbo Modules normally.
 - **One bridging header per target.** If multiple Swift-using modules collide, they must share or coordinate.
 - **`@objc`** — Swift methods without `@objc` are invisible to Obj-C and therefore to `RCT_EXTERN_METHOD`.
 - **Codegen + `#if __cplusplus`** — Swift can't parse C++ types, so codegen headers must be gated behind `__cplusplus` macros in the library header.
-- **Nitro Modules require Hermes** and a recent RN version. Check the compat matrix.
+- **Nitro Modules don't require Hermes specifically** — they're built on JSI (`jsi::NativeState`) and run in any JSI environment. They do require react-native 0.75+, and Nitro *views* require react-native 0.78+ and the New Architecture (Fabric).
 - **Builder Bob's options change** — re-check available module types on each release.
 
 ## References
 - Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Make Your Native Modules Faster", pp. 128–135
 - Builder Bob / create-react-native-library: https://github.com/callstack/react-native-builder-bob
-- Nitro Modules: https://github.com/mrousavy/nitro
+- Nitro Modules: https://github.com/mrousavy/nitro (requirements: https://nitro.margelo.com/docs/minimum-requirements)
 - C++ Turbo Modules: https://reactnative.dev/docs/the-new-architecture/cxx-cxxturbomodules
 
 ## Related skills

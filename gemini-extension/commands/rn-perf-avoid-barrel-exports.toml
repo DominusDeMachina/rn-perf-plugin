@@ -85,7 +85,7 @@ yarn add -D eslint-plugin-no-barrel-imports
 
 ## Edge cases & gotchas
 - **React Native Paper and similar libraries** ship a dedicated Babel plugin that strips unused exports from their barrel — install the plugin instead of rewriting their imports.
-- **Some Metro versions** auto-add an entry-point barrel for `react-native` itself. That's profiled and fast-path optimised — don't rewrite `react-native` imports.
+- **The `react-native` package is itself a giant barrel** — its index re-exports every API. Don't try to "fix" it with deep imports: keep the root import. Deep imports of `react-native/Libraries/...` internals are formally deprecated since RN 0.80 (ESLint + console warnings now, removal planned in a future release).
 - **date-fns was specifically designed** to support submodule imports. Not every library is — verify the package's `exports` field in its `package.json` or its docs before assuming submodule paths work.
 - **Type-only barrels** (`export type { Foo } from './Foo'`) have no runtime cost — Babel strips them. Keep them if they aid DX.
 - **VS Code "Auto Imports"** will happily insert barrel imports when the file exists. Removing the barrel file forces auto-imports to direct paths.

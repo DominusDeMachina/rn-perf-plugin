@@ -30,7 +30,7 @@ Installs and configures `babel-plugin-react-compiler` and the compiler rules in 
    For projects on React 17 or 18, also install `react-compiler-runtime@latest` and set `target` to the matching major version.
 4. **Configure `babel.config.js`** with the correct `target`. The compiler Babel plugin must run before other transforms.
 5. **Adopt incrementally with `sources`.** If the compiler chokes on certain files, scope it down rather than disabling globally — beta software regressing one screen shouldn't block the whole app (book p. 54).
-6. **Make sure DevTools is new enough** to display `Memo ✨` badges. React Native may bundle its own DevTools version, so upgrade or override only if the badge is absent despite a clean compiler build.
+6. **Make sure DevTools is new enough** (React DevTools >= 6.0.1) to display `Memo ✨` badges. React Native may bundle its own DevTools version, so upgrade or override only if the badge is absent despite a clean compiler build.
 7. **Verify in DevTools.** Open the Components panel; optimized components show `Memo ✨`.
 8. **Re-profile.** Use the Profiler (see [[rn-perf-profile-js-react]]) on the same scenario you measured before. Cascading re-renders should narrow to truly-affected components.
 

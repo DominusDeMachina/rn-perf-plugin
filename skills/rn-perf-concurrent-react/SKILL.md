@@ -24,7 +24,7 @@ Applies Concurrent React primitives — `useDeferredValue`, `useTransition`, aut
 
 ## Code patterns
 
-Defer a heavy child while keeping the counter responsive (book p. 47). The book's tip: "Remember to wrap computation-heavy components you're passing deferred values to in `React.memo()` to prevent unnecessary re-renders caused by parent component re-renders" (p. 48).
+Defer a heavy child while keeping the counter responsive (book p. 57). The book's tip: "Remember to wrap computation-heavy components you're passing deferred values to in `React.memo()` to prevent unnecessary re-renders caused by parent component re-renders" (p. 58).
 
 ```tsx
 import { useDeferredValue, useState } from 'react';
@@ -44,7 +44,7 @@ function DeferredScreen() {
 }
 ```
 
-Search with stale-while-loading via `Suspense` + `useDeferredValue` (book pp. 48–49):
+Search with stale-while-loading via `Suspense` + `useDeferredValue` (book pp. 58–59):
 
 ```tsx
 function SearchScreen() {
@@ -65,7 +65,7 @@ function SearchScreen() {
 }
 ```
 
-`useTransition` for a heavy secondary update — critical `setCount` stays sync, expensive `setSlowCount` runs at low priority (book pp. 49–50):
+`useTransition` for a heavy secondary update — critical `setCount` stays sync, expensive `setSlowCount` runs at low priority (book pp. 59–60):
 
 ```tsx
 function TransitionScreen() {
@@ -91,7 +91,7 @@ function TransitionScreen() {
 }
 ```
 
-Automatic batching — React 18 collapses both setStates into one commit even inside `setTimeout` (book p. 51):
+Automatic batching — React 18 collapses both setStates into one commit even inside `setTimeout` (book p. 61):
 
 ```ts
 setTimeout(() => {
@@ -109,14 +109,14 @@ setTimeout(() => {
 
 ## Edge cases & gotchas
 - **`useDeferredValue` reorders work, it doesn't shrink it.** A 200 ms heavy render still takes 200 ms — the win is keeping the input responsive during that span.
-- **Always `React.memo` the heavy deferred consumer** (book p. 48). Otherwise a parent re-render forces it to re-render anyway, defeating the purpose.
+- **Always `React.memo` the heavy deferred consumer** (book p. 58). Otherwise a parent re-render forces it to re-render anyway, defeating the purpose.
 - **`useTransition` is for JS-driven transitions.** Native-stack navigators (React Navigation) swap screens on the UI thread; wrapping `navigation.navigate` in `startTransition` accomplishes nothing. The book is explicit: JS-based navigators benefit, native ones don't (p. 50).
 - **Don't wrap critical updates in `startTransition`.** The input value must stay synchronous; only defer downstream effects.
 - **Pre-New-Architecture caveat:** without the New Arch, `useTransition`/`useDeferredValue` exist but Suspense-for-data and full async rendering don't. Confirm before relying.
 - **Automatic batching can surprise code that relied on intermediate commits.** Use `flushSync` for the rare exception.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Concurrent React", pp. 46–51
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Concurrent React", pp. 56–62
 - React 18 explainer (automatic batching deep-dive) — https://react.dev/blog/2022/03/29/react-v18
 
 ## Related skills
@@ -124,4 +124,4 @@ setTimeout(() => {
 - [[rn-perf-virtualized-lists]] — typical heavy consumer of a deferred search query.
 - [[rn-perf-react-compiler]] — automates the `React.memo` requirement around deferred consumers.
 - [[rn-perf-profile-js-react]] — measure the commit-time delta.
-- [[rn-perf-animations-reanimated]] — `InteractionManager` and `startTransition` are complementary deferral mechanisms (book p. 62).
+- [[rn-perf-animations-reanimated]] — `InteractionManager` and `startTransition` are complementary deferral mechanisms (book p. 74).

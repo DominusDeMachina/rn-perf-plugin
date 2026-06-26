@@ -102,7 +102,7 @@ module.exports = {
 - Hermes moves load and parse work to **build time**, so web-style "initial download" obsessing doesn't map directly to RN. What still matters: bytecode size, JS on the init path, and eager Turbo Module initialisation.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "How to Analyze JS Bundle Size", pp. 142–147.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "How to Analyze JS Bundle Size", pp. 174–180.
 - source-map-explorer: https://www.npmjs.com/package/source-map-explorer
 - Expo Atlas: https://github.com/expo/expo-atlas
 - Rsdoctor: https://rsdoctor.dev

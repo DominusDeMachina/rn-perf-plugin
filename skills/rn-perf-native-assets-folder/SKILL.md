@@ -6,10 +6,10 @@ description: Use when a React Native app ships 1x/2x/3x image assets and the use
 # Use Platform-Native Asset Catalogs
 
 ## When to use
-The app bundles 1x/2x/3x PNG/JPG variants and ships all three to every device. On Android with AAB this is mostly automatic; on iOS it requires an explicit opt-in that's not yet default (as of January 2025 per book p. 174).
+The app bundles 1x/2x/3x PNG/JPG variants and ships all three to every device. On Android with AAB this is mostly automatic; on iOS it requires an explicit opt-in that's not yet default (the 2026 book says this is still true as of March 2026).
 
 ## What this skill does (single responsibility)
-Make per-density image variants land in **platform-native asset catalogs** so the store ships only the matching density: Android auto-routes via `drawable-*-v4` folders when you build an AAB; iOS opts in via the hard-coded `RNAssets.xcassets` catalog. Does **not** cover image compression itself (use ImageOptim/TinyPNG/squoosh.app — book side note p. 170), general bundle analysis (see [[rn-perf-analyze-app-bundle]]), or non-image assets (fonts, sounds, videos still ship inline).
+Make per-density image variants land in **platform-native asset catalogs** so the store ships only the matching density: Android auto-routes via `drawable-*-v4` folders when you build an AAB; iOS opts in via the hard-coded `RNAssets.xcassets` catalog. Does **not** cover image compression itself (use ImageOptim/TinyPNG/squoosh.app — book side note p. 211), general bundle analysis (see [[rn-perf-analyze-app-bundle]]), or non-image assets (fonts, sounds, videos still ship inline).
 
 ## Workflow
 
@@ -20,7 +20,7 @@ Make per-density image variants land in **platform-native asset catalogs** so th
 4. Verify the install-size win with Ruler (see [[rn-perf-analyze-app-bundle]]). Google Play's on-demand compilation ships only the matching folder per device.
 
 ### iOS (explicit opt-in)
-1. Create the catalog folder at exactly `ios/RNAssets.xcassets`. The name is hard-coded in RN bundle scripts (book p. 172) — custom names won't work.
+1. Create the catalog folder at exactly `ios/RNAssets.xcassets`. The name is hard-coded in RN bundle scripts (book p. 213) — custom names won't work.
 2. In Xcode, open the target → **Build Phases** → expand **Bundle React Native code and images**.
 3. Insert above line 8: `export EXTRA_PACKAGER_ARGS="--asset-catalog-dest ./"`.
 4. Build via Xcode (Product → Archive). Metro populates `RNAssets.xcassets` with 1x/2x/3x slots Xcode recognises.
@@ -38,7 +38,7 @@ assets/
 └── image@3x.jpg    // 3x resolution
 ```
 
-iOS build phase modification (the load-bearing line, book p. 172):
+iOS build phase modification (the load-bearing line, book p. 213):
 
 ```bash
 export EXTRA_PACKAGER_ARGS="--asset-catalog-dest ./"
@@ -84,8 +84,8 @@ cd android
 - App-size diff: re-run Ruler (Android) / App Thinning Size Report (iOS). The 3x asset alone is typically ~9× the 1x size, so the win is meaningful for image-heavy apps.
 
 ## Edge cases & gotchas
-- **The folder name must be exactly `RNAssets.xcassets`.** The path is hard-coded in React Native bundle scripts (book p. 172).
-- **Not enabled by default on iOS** as of January 2025 — RN core is working on flipping the default. Check release notes when upgrading.
+- **The folder name must be exactly `RNAssets.xcassets`.** The path is hard-coded in React Native bundle scripts (book p. 213).
+- **Not enabled by default on iOS** as of March 2026 in the 2026 book. Check React Native release notes when upgrading because this may eventually become the default.
 - **Only image assets are catalog-handled.** Fonts, sounds, videos still ship in the JS bundle's asset directory; optimise those with compression tools instead.
 - **`require('./image.jpg')` still works** — the `@2x`/`@3x` resolution is transparent to JS code. Don't switch to imperative `Image.asset(...)` APIs.
 - **AAB vs APK**: the Android win only applies with **AAB** uploads to Play Store (mandatory anyway). Monolithic APKs contain all densities.
@@ -94,7 +94,7 @@ cd android
 - **CocoaPods reinstall not required** — purely a build-phase env var change.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Use Native Assets Folder", pp. 170–174
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Use Native Assets Folder", pp. 210–217
 - Apple App Thinning: https://developer.apple.com/app-store/app-thinning/
 - Image compressors: ImageOptim, TinyPNG, squoosh.app
 

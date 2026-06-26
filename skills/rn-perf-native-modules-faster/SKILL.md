@@ -201,7 +201,7 @@ Android autolinks C++ Turbo Modules normally.
 - **Builder Bob's options change** — re-check available module types on each release.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Make Your Native Modules Faster", pp. 128–135
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Make Your Native Modules Faster", pp. 148–158
 - Builder Bob / create-react-native-library: https://github.com/callstack/react-native-builder-bob
 - Nitro Modules: https://github.com/mrousavy/nitro (requirements: https://nitro.margelo.com/docs/minimum-requirements)
 - C++ Turbo Modules: https://reactnative.dev/docs/the-new-architecture/cxx-cxxturbomodules

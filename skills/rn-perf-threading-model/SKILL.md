@@ -124,7 +124,7 @@ For high-confidence verification, profile in Instruments / Android Studio Profil
 - Touching UIKit (`UIView`, `UILabel`) off the main thread on iOS will crash or behave inconsistently. Always `DispatchQueue.main.async`.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Understand the Threading Model of Turbo Modules and Fabric", pp. 111–118
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Understand the Threading Model of Turbo Modules and Fabric", pp. 126–135
 - React Native New Architecture docs: https://reactnative.dev/architecture/landing-page
 
 ## Related skills

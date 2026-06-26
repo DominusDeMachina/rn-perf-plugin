@@ -63,7 +63,7 @@ Save a baseline `.cpuprofile`, apply the fix, re-record on the **same release bu
 - DevTools requires Hermes — JSC builds will not attach.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile JS and React Code", pp. 14–20.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "How to Profile JS and React Code", pp. 16–24.
 - React Native DevTools: https://reactnative.dev/docs/react-native-devtools
 
 ## Related skills

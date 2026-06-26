@@ -144,7 +144,7 @@ const MyTabs = createNativeBottomTabNavigator({
 - **Don't replace JS components when no native equivalent exists** or design genuinely demands JS flexibility. The book's stance: push back on *design*, not engineering — *"Great UX is about the dialog between designers' creativity and what's physically possible from an engineering standpoint."*
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Use Dedicated React Native SDKs Over Web", pp. 123–127
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Use Dedicated React Native SDKs Over Web", pp. 140–147
 - Hermes Intl docs: https://hermesengine.dev/docs/intl
 - react-native-quick-crypto: https://github.com/margelo/react-native-quick-crypto
 - react-native-screens: https://github.com/software-mansion/react-native-screens

@@ -22,14 +22,14 @@ Installs and configures `babel-plugin-react-compiler` and the compiler rules in 
    npm install -D eslint-plugin-react-hooks@latest
    ```
    Enable the `recommended-latest` preset or equivalent compiler lint rules. The compiler safely skips files that break Rules of React, so lint is how you see what it skipped.
-2. **Fix the violations the linter surfaces.** Class components, mutated props, conditional hooks, etc. — the compiler will not optimize these (book p. 53).
+2. **Fix the violations the linter surfaces.** Class components, mutated props, conditional hooks, etc. — the compiler will not optimize these (book p. 64).
 3. **Install the Babel plugin:**
    ```
    npm install -D babel-plugin-react-compiler@latest
    ```
    For projects on React 17 or 18, also install `react-compiler-runtime@latest` and set `target` to the matching major version.
 4. **Configure `babel.config.js`** with the correct `target`. The compiler Babel plugin must run before other transforms.
-5. **Adopt incrementally with `sources`.** If the compiler chokes on certain files, scope it down rather than disabling globally — beta software regressing one screen shouldn't block the whole app (book p. 54).
+5. **Adopt incrementally with `sources`.** If the compiler chokes on certain files, scope it down rather than disabling globally — beta software regressing one screen shouldn't block the whole app (book p. 65).
 6. **Make sure DevTools is new enough** (React DevTools >= 6.0.1) to display `Memo ✨` badges. React Native may bundle its own DevTools version, so upgrade or override only if the badge is absent despite a clean compiler build.
 7. **Verify in DevTools.** Open the Components panel; optimized components show `Memo ✨`.
 8. **Re-profile.** Use the Profiler (see [[rn-perf-profile-js-react]]) on the same scenario you measured before. Cascading re-renders should narrow to truly-affected components.
@@ -69,7 +69,7 @@ module.exports = function () {
 };
 ```
 
-Incremental adoption — scope the compiler to one directory so a regression in unknown code doesn't block rollout (book p. 54):
+Incremental adoption — scope the compiler to one directory so a regression in unknown code doesn't block rollout (book p. 65):
 
 ```js
 const ReactCompilerConfig = {
@@ -77,7 +77,7 @@ const ReactCompilerConfig = {
 };
 ```
 
-What the compiler emits, for grounding — given a `MyApp` reading `value`, it imports `c` from `react/compiler-runtime` and rewrites the JSX to read from a per-render cache `$` keyed on the inputs. Shallow comparison, same rule as `React.memo` (book p. 55):
+What the compiler emits, for grounding — given a `MyApp` reading `value`, it imports `c` from `react/compiler-runtime` and rewrites the JSX to read from a per-render cache `$` keyed on the inputs. Shallow comparison, same rule as `React.memo` (book p. 66):
 
 ```tsx
 import { c as _c } from 'react/compiler-runtime';
@@ -96,7 +96,7 @@ export default function MyApp() {
 }
 ```
 
-`useMemoCache` conceptual implementation — a stable per-instance array of slots, polyfilled by `react-compiler-runtime` for React 18 (book p. 55):
+`useMemoCache` conceptual implementation — a stable per-instance array of slots, polyfilled by `react-compiler-runtime` for React 18 (book p. 66):
 
 ```ts
 function useMemoCache(n) {
@@ -108,19 +108,19 @@ function useMemoCache(n) {
 ## Verification
 - **`Memo ✨` badge in DevTools Components panel** for optimized components. If absent, check DevTools version, compiler config, and lint skips.
 - **Profiler before/after** on the same interaction — cascading re-renders should narrow to truly-affected components (the book's Expensify screenshot, p. 57, shows a deep flamegraph collapse to a sparse one).
-- **Quantitative target:** a few-percent improvement on Time-to-Interactive (Expensify saw 4.3% on Chat Finder TTI, book p. 56). Apps already heavily memoized see less.
+- **Quantitative target:** a few-percent improvement on Time-to-Interactive (Expensify saw 4.3% on Chat Finder TTI, book p. 68). Apps already heavily memoized see less.
 - **Build doesn't break.** If the compiler fails on a file, narrow `sources`; don't disable globally.
 - **Paste a component into the React Compiler Playground** (https://playground.react.dev/) to see exactly what it rewrites to.
 
 ## Edge cases & gotchas
-- **Shallow comparison only.** "Be careful when using objects or arrays as props. If their reference changes, they will be treated as new values" (book p. 55). Pass primitives or stable references.
+- **Shallow comparison only.** "Be careful when using objects or arrays as props. If their reference changes, they will be treated as new values" (book p. 66). Pass primitives or stable references.
 - **The compiler skips non-conformant code.** Class components, code that breaks Rules of React, and outdated patterns get no optimization. The ESLint plugin is the way to spot the gap.
 - **Missing `Memo ✨` despite a clean build** can mean DevTools is too old, the compiler skipped the component, or the file is outside `sources`.
 - **Do not strip manual memoization blindly.** Remove it only after the compiler is working and profiling shows no regression.
-- **React Native specific** (book p. 58): "React Compiler is built for universal React but primarily tested in web environments. Enabling it in React Native might require additional steps to ensure `Memo ✨` badges appear correctly."
+- **React Native specific** (book p. 69): "React Compiler is built for universal React but primarily tested in web environments. Enabling it in React Native might require additional steps to ensure `Memo ✨` badges appear correctly."
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "React Compiler", pp. 52–58
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "React Compiler", pp. 63–69
 - React Compiler installation: https://react.dev/learn/react-compiler/installation
 - React Compiler configuration: https://react.dev/reference/react-compiler/configuration
 - React Compiler `target`: https://react.dev/reference/react-compiler/target

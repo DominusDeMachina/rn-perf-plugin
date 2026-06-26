@@ -83,10 +83,10 @@ cd android && ./gradlew clean
 - `reactNativeArchitectures=arm64-v8a` in `gradle.properties` (or `--activeArchOnly` on `run-android`) massively speeds local Android builds.
 - **Expo + Dev Clients / Config Plugins** abstracts most of this — redirect users to Config Plugins instead of editing `Podfile`/`build.gradle` directly.
 - Dynamic versions (`+` in Gradle, unconstrained CocoaPods deps) cause non-reproducible builds — flag on sight.
-- **SPM is not supported** for React Native (as of Jan 2025).
+- **SPM is not supported** for React Native as of the 2026 book; CocoaPods remains the default iOS dependency manager for RN modules.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Understand Platform Differences", pp. 67–75.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Understand Platform Differences", pp. 81–91.
 - React Native CLI: https://github.com/react-native-community/cli
 
 ## Related skills

@@ -115,7 +115,7 @@ Alternative fix: store listeners as `WeakReference<Callback>` — see [[rn-perf-
 - `WeakReference<Callback>` solves listener leaks elegantly but requires null-checks on every iteration.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "How to Hunt Memory Leaks", pp. 85–90.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "How to Hunt Memory Leaks", pp. 159–167.
 
 ## Related skills
 - [[rn-perf-native-memory-mgmt]] — the *why* (ARC, GC, smart pointers, WeakReference) behind these leaks.

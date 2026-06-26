@@ -140,7 +140,7 @@ ReactMarker.addListener { name ->
 - TTFV (Time To First Visible) ≈ `contentAppeared`; TTI ≈ `screenInteractive`. Some teams want both — keep them distinct.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "How to Measure TTI", pp. 91–98.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "How to Measure TTI", pp. 102–110.
 - `react-native-performance`: https://github.com/oblador/react-native-performance
 
 ## Related skills

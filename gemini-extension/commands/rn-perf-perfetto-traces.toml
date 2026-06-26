@@ -127,8 +127,8 @@ Three RN-specific lanes that matter:
 - "Open with legacy UI" is for old systrace HTML files (`about:tracing` format). Skip it for modern traces.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile Native Parts of React Native", p. 84.
-- Book: Libraries acknowledgements, p. 180.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "How to Profile Native Parts of React Native", p. 101.
+- Book: Libraries/resources acknowledgement section.
 - Perfetto: https://perfetto.dev/docs/
 - Perfetto Android quickstart: https://perfetto.dev/docs/quickstart/android-tracing
 - Perfetto UI guide: https://perfetto.dev/docs/visualization/perfetto-ui

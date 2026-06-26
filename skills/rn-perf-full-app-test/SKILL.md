@@ -1,17 +1,17 @@
 ---
 name: rn-perf-full-app-test
-description: Use when the user wants a comprehensive performance audit of a React Native app — walks the full optimization checklist from Callstack's "The Ultimate Guide to React Native Optimization" (2025) across JavaScript, Native, and Bundling layers, scans the codebase for symptoms, and dispatches to the specific `rn-perf-*` skill that owns each fix. Trigger whenever the user says "audit my RN app", "is my app optimized", "perf review", "performance health check", "find perf issues", "what's slow in my app", "check React Native performance end-to-end", or asks for an overall review against the React Native Optimization book — even without naming specific tools or skills. This is the entry-point orchestrator that surveys all 36 topic skills plus the 6 operational/tool-driver skills and produces a prioritized punch list.
+description: Use when the user wants a comprehensive performance audit of a React Native app — walks the full optimization checklist from Callstack's "The Ultimate Guide to React Native Optimization" (2026) across JavaScript, Native, and Bundling layers, scans the codebase for symptoms, and dispatches to the specific `rn-perf-*` skill that owns each fix. Trigger whenever the user says "audit my RN app", "is my app optimized", "perf review", "performance health check", "find perf issues", "what's slow in my app", "check React Native performance end-to-end", or asks for an overall review against the React Native Optimization book — even without naming specific tools or skills. This is the entry-point orchestrator that surveys 36 audit checks plus 6 operational/tool-driver sibling skills and produces a prioritized punch list.
 ---
 
 # Full React Native Performance Audit (Orchestrator)
 
 ## When to use
-The user has a React Native app and wants to know what's slow, what to fix first, or whether they've covered the major perf wins from "The Ultimate Guide to React Native Optimization" (2025). This is the **entry point** for a holistic audit — you walk the book's checklist, scan the codebase for symptoms, then hand each finding off to the specialized `rn-perf-*` skill that owns the fix.
+The user has a React Native app and wants to know what's slow, what to fix first, or whether they've covered the major perf wins from "The Ultimate Guide to React Native Optimization" (2026). This is the **entry point** for a holistic audit — you walk the book's checklist, scan the codebase for symptoms, then hand each finding off to the specialized `rn-perf-*` skill that owns the fix.
 
 Also triggers on vague-but-broad asks: "make my app faster", "perf review before launch", "find low-hanging fruit", "audit before I take on this contract", "is this RN app healthy?".
 
 ## What this skill does (single responsibility)
-**Orchestrates** a full-codebase audit and **dispatches** to the 42 specialized `rn-perf-*` skills. Detects symptoms and prioritizes findings; does **not** apply fixes itself. Each fix is delegated:
+**Orchestrates** a full-codebase audit and **dispatches** to the 42 sibling `rn-perf-*` skills in this package. Detects symptoms and prioritizes findings; does **not** apply fixes itself. Each fix is delegated:
 
 - Detected barrel exports → invoke [[rn-perf-avoid-barrel-exports]].
 - Detected `<ScrollView>` with `.map(` rendering many items → invoke [[rn-perf-virtualized-lists]].
@@ -94,7 +94,7 @@ For each row, run the detection, capture evidence, and dispatch to the listed sk
 | 22 | App install/download size unknown | (always, see Phase 1.5) | [[rn-perf-analyze-app-bundle]] |
 | 23 | About to add an npm dependency | Recent commits touching `package.json` with new entries | [[rn-perf-library-size]] |
 | 24 | Barrel re-export files defeating tree shaking | `find src -name 'index.ts' -o -name 'index.js' \| xargs grep -l '^export \*\|^export {.*} from' 2>/dev/null` | [[rn-perf-avoid-barrel-exports]] |
-| 25 | Metro default (no tree shaking) | No `metro-serializer-esbuild` in `metro.config.js`, no Re.Pack, no `EXPO_UNSTABLE_TREE_SHAKING` | [[rn-perf-tree-shaking]] |
+| 25 | No effective tree shaking | Plain Metro app without `metro-serializer-esbuild`, Re.Pack, or Expo SDK 54+ default tree shaking; barrel-heavy bundle remains large after direct imports | [[rn-perf-tree-shaking]] |
 | 26 | App approaching the 200 MB Play limit or JSC-based | AAB > 150 MB, or Hermes disabled | [[rn-perf-remote-code-loading]] |
 | 27 | R8 minification/shrinking off | `grep -E "minifyEnabled\|shrinkResources" android/app/build.gradle` shows `false` or commented out | [[rn-perf-r8-android-shrink]] |
 | 28 | Assets bundled via JS `require()` instead of platform asset catalogs | `find . -name '*@2x.png' -o -name '*@3x.png' -not -path '*/node_modules/*' -not -path '*/ios/*/Images.xcassets/*'` | [[rn-perf-native-assets-folder]] |
@@ -145,7 +145,7 @@ Produce a table sorted by impact:
 - **P2** — structural refactor with clear benefit (atomic state, virtualized lists where ScrollView is used).
 - **P3** — advanced / context-specific (Re.Pack, remote code loading, custom native module rewrite).
 
-**Don't dump all 42** — pick the **top 3–5 by impact** and hand off the top P0 finding to its skill first.
+**Don't dump all 42 sibling skills** — pick the **top 3–5 by impact** and hand off the top P0 finding to its skill first.
 
 ## Code patterns / detection snippets
 
@@ -198,7 +198,7 @@ echo "=== Phase 4.24 — barrel files ==="
 find src -name "index.ts" -o -name "index.js" 2>/dev/null | xargs grep -l "^export \*\|^export {.*} from" 2>/dev/null
 
 echo "=== Phase 4.25 — tree-shaking config ==="
-grep -E "metro-serializer-esbuild|EXPO_UNSTABLE_TREE_SHAKING|@callstack/repack" package.json metro.config.js 2>/dev/null
+grep -E "metro-serializer-esbuild|@callstack/repack|expo" package.json metro.config.js app.json app.config.* 2>/dev/null
 
 echo "=== Phase 4.27 — R8 / shrinking ==="
 grep -E "minifyEnabled|shrinkResources" android/app/build.gradle 2>/dev/null
@@ -247,7 +247,7 @@ The audit is complete when:
 - **RN version gating**: many checks are no-ops on old versions. Concurrent React needs ≥ 0.69 + New Arch; React Compiler is most useful on ≥ 0.78 (React 19); MMKV/Reanimated 3 want New Arch. State each gate when reporting.
 - **Expo Go**: cannot ship native-level fixes (R8, custom modules, bundle compression). Flag those findings as "requires dev-client/EAS Build" instead of P0.
 - **JSC instead of Hermes**: invalidates [[rn-perf-disable-bundle-compression]] (no mmap fast-path) and *increases* the urgency of [[rn-perf-remote-code-loading]]. Always check the engine.
-- **Don't recommend everything at once**: a 42-item backlog overwhelms. Surface the top 3–5 by impact; let the user pull more on demand.
+- **Don't recommend everything at once**: a 42-skill backlog overwhelms. Surface the top 3–5 by impact; let the user pull more on demand.
 - **Symptom-driven vs proactive**: if the user came in with "typing is laggy", run Phase 2 first and prioritize [[rn-perf-uncontrolled-components]] / [[rn-perf-concurrent-react]] / [[rn-perf-profile-js-react]] before the full sweep.
 - **iOS-only or Android-only apps**: skip the other platform's bundling chapters (R8 is Android; App Thinning is iOS).
 - **Monorepo gotcha**: scan from the *app* package, not the workspace root, or the grep counts will be polluted by libraries the app doesn't ship.
@@ -256,8 +256,8 @@ The audit is complete when:
 
 ## References
 
-- Book: "The Ultimate Guide to React Native Optimization" (2025), Callstack — the complete optimization checklist this audit walks. TOC: Preface (p. 4) · How to Read (p. 5) · Why Performance Matters (p. 7); Part 1 JavaScript (chapters at pp. 14, 21, 24, 30, 34, 42, 46, 52, 59); Part 2 Native (pp. 67, 76, 85, 91, 99, 111, 119, 123, 128); Part 3 Bundling (pp. 142, 148, 154, 156, 159, 163, 167, 170, 175).
-- The 42 sibling `rn-perf-*` skills shipped in this plugin's `skills/` directory — invoke them by name via the Skill tool.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), Callstack — the complete optimization checklist this audit walks. TOC: Preface (p. 4) · How to Read (p. 6) · Why Performance Matters (p. 8); Part 1 JavaScript (chapters at pp. 16, 25, 29, 37, 41, 51, 56, 63, 70); Part 2 Native (introduction p. 77; chapters at pp. 81, 92, 102, 111, 126, 136, 140, 148, 159); Part 3 Bundling (introduction p. 168; chapters at pp. 174, 181, 189, 192, 196, 201, 206, 210).
+- The 42 sibling `rn-perf-*` skills shipped alongside this orchestrator in the plugin's `skills/` directory — invoke them by name via the Skill tool.
 
 ## Related skills
 

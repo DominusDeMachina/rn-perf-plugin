@@ -1,6 +1,6 @@
 # rn-perf
 
-A multi-platform React Native performance plugin bundling 43 shared Agent Skills for Codex, Claude Code, and Gemini CLI, based on Callstack's *Ultimate Guide to React Native Optimization* (2025) plus additional coverage for images, navigation, the data layer, storage, startup work deferral, perceived performance, and production monitoring.
+A multi-platform React Native performance plugin bundling 43 shared Agent Skills for Codex, Claude Code, and Gemini CLI, based on Callstack's *Ultimate Guide to React Native Optimization* (2026) plus additional coverage for images, navigation, the data layer, storage, startup work deferral, perceived performance, production monitoring, Android 16 KB alignment, and operational profiling workflows.
 
 For non-performance best practices (testing, accessibility, security, error handling, OTA updates, deep linking), see the sibling [`rn-quality-plugin`](../rn-quality-plugin).
 

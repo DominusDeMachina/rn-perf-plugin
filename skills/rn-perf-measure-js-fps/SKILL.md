@@ -67,7 +67,7 @@ appId: com.example.app
 - Dev builds inflate frame cost — always measure release.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Measure JS FPS", pp. 21–23.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "How to Measure JS FPS", pp. 25–28.
 - Flashlight: https://flashlight.dev
 - Maestro: https://maestro.mobile.dev
 

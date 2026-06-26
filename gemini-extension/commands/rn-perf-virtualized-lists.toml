@@ -26,15 +26,15 @@ Selects and configures the right virtualized list — `FlatList`, `FlashList`, `
    - `ScrollView` + mapped children + > ~20 items → migrate to **`FlatList`**.
    - `FlatList` with **fixed-height rows** → add `getItemLayout` (skips measurement).
    - `FlatList` with complex rows, variable heights, blanks while scrolling, or > 500 items → migrate to **`FlashList`**. For FlashList v1, provide `estimatedItemSize`; for FlashList v2+, do not add deprecated size-estimate props.
-   - On the New Architecture with appetite for a beta → evaluate **`@legendapp/list`** behind a feature flag.
+   - If the app cannot use FlashList v2 because it is still off the New Architecture, or it needs chat-friendly/bidirectional infinite-scroll behavior, evaluate **`@legendapp/list`**.
    - Highly custom layouts (masonry, sticky-grid hybrids) where none of the above fit → drop down to **`VirtualizedList`**.
 4. **Configure required props.** Always set `data`, `renderItem`, `keyExtractor`. For fixed-height `FlatList`, add `getItemLayout`. For FlashList v1, supply `estimatedItemSize` (average row height — e.g., 50/100/150 → 100). For FlashList v2+, focus on stable keys, lightweight row components, and `getItemType` for heterogeneous rows.
-5. **Keep rows light.** Memoize the row component; never put side effects in the render path; avoid inline objects in `renderItem`. The book is explicit: "It's crucial to keep list items as light as possible, without any side effects" (p. 39–40).
+5. **Keep rows light.** Memoize the row component; never put side effects in the render path; avoid inline objects in `renderItem`. The book is explicit: list items need to stay light and side-effect free.
 6. **Measure again** on the same device/scenario; persist before/after Flashlight (Android) or Perf Monitor numbers in the PR.
 
 ## Code patterns
 
-`ScrollView` → `FlatList` (book pp. 35–36):
+`ScrollView` → `FlatList` (book pp. 42–45):
 
 ```tsx
 import { View, Text, FlatList } from 'react-native';
@@ -50,7 +50,7 @@ const renderItem = ({ item }) => (
 />
 ```
 
-Add `getItemLayout` for fixed-height rows (book p. 38):
+Add `getItemLayout` for fixed-height rows (book p. 45):
 
 ```tsx
 const ITEM_HEIGHT = 50;
@@ -69,7 +69,7 @@ const getItemLayout = (_, index) => ({
 />
 ```
 
-`FlatList` → `FlashList` v1 (book p. 39):
+`FlatList` → `FlashList` v1:
 
 ```tsx
 import { FlashList } from '@shopify/flash-list';
@@ -96,23 +96,36 @@ const getItemType = (item) => item.type;
 />
 ```
 
+`FlatList` / `FlashList` alternative → `LegendList`:
+
+```tsx
+import { LegendList } from '@legendapp/list';
+
+<LegendList
+  data={items}
+  renderItem={renderItem}
+  keyExtractor={(item) => item.id}
+  recycleItems
+/>
+```
+
 ## Verification
 - **FPS:** scroll end-to-end on a **low-end Android** device with Perf Monitor open. Target sustained ≥ 58 fps JS.
-- **Flashlight score:** record before/after; the book's example moved a real list from **25/100 → 78/100** swapping `FlatList` for `FlashList` (p. 40).
+- **Flashlight score:** record before/after; the book's example moved a real list from **25/100 → 78/100** swapping `FlatList` for `FlashList` (p. 48).
 - **CPU:** "Average CPU usage" and "High CPU usage" in Flashlight should drop (book example: 226.8% / 19.1 s → 127.1% / 1.7 s).
 - **No blank cells** during fast scroll. On FlashList v1, tune `estimatedItemSize`; on FlashList v2+, inspect row cost, stable keys, and item types instead.
 
 ## Edge cases & gotchas
 - **FlashList v2 no longer reads size estimates.** `estimatedItemSize`, `estimatedListSize`, and `estimatedFirstItemOffset` are deprecated in v2. Do not flag them as missing unless the app is on FlashList v1.
 - **Item recycling means render-path side effects leak across rows.** With `FlashList`, the same component instance gets new `data`. Never start animations or set up subscriptions in render; always `useEffect` keyed off `item.id`.
-- **`FlatList` keeps unmounted items in its window buffer.** Uses more memory than `FlashList` and "eventually slows the list down" (book p. 39).
+- **`FlatList` keeps unmounted items in its window buffer.** Uses more memory than `FlashList` and "eventually slows the list down" (book p. 46).
 - **`getItemLayout` lies for variable-height rows.** Scrollbar position and `scrollToIndex` will land at the wrong offset. Compute conservatively or omit it.
-- **Legend List is 1.0-beta.** Use only with a fallback path; gate behind a feature flag in prod.
+- **Legend List v2.x is production-ready, but recycling is opt-in.** Enable `recycleItems` for long lists where performance matters, and avoid render-path side effects or local state that assumes one component instance always maps to the same item.
 - **Always measure with the engine you ship** (Hermes vs JSC) and on a low-end Android. Emulator and high-end iPhone hide the bottleneck.
 - **Do not infer a list fix from component count alone.** Treat tree depth and item count as signals; require FPS, Profiler, or user-visible blank-cell evidence before recommending a migration.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "Higher-Order Specialized Components", pp. 34–41.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "Higher-Order Specialized Components", pp. 41–50.
 - FlashList: https://shopify.github.io/flash-list/
 - FlashList v2 changes: https://shopify.github.io/flash-list/docs/v2-changes/
 - Legend List: https://legendapp.com/open-source/list/

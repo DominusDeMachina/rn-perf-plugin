@@ -137,7 +137,7 @@ Verification is operational, not theoretical — apply a pattern from this skill
 - **`Unmanaged` rules summary**: retained ↔ retained, unretained ↔ unretained. Under-retaining (refcount below 0) *crashes*; over-retaining leaks.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Understanding Native Memory Management", pp. 99–110.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Understanding Native Memory Management", pp. 111–125.
 
 ## Related skills
 - [[rn-perf-hunt-native-memory-leaks]] — the operational sibling: how to *find* an existing leak.

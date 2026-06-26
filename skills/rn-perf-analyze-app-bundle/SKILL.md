@@ -105,7 +105,7 @@ On Demand Resources size: Zero KB compressed, Zero KB uncompressed
 - Two metric families: network-bound (download / update) is compressed; storage-bound (install / storage) is uncompressed. Use the metric the user actually cares about.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "How to Analyze App Bundle Size", pp. 148–153.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "How to Analyze App Bundle Size", pp. 181–188.
 - Spotify Ruler: https://github.com/spotify/ruler
 - Emerge Tools: https://www.emergetools.com
 - App Store Connect: https://appstoreconnect.apple.com

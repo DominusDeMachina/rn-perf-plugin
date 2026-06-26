@@ -1,8 +1,8 @@
-description = "Use when the user has `index.ts` / `index.js` re-export files in a React Native app and wants to remove them — Metro does not tree-shake, so barrels silently pull every re-expor..."
+description = "Use when the user has `index.ts` / `index.js` re-export files in a React Native app and wants to remove them — plain Metro does not tree-shake, so barrels silently pull every re..."
 prompt = '''
 # RN Perf Skill: rn-perf-avoid-barrel-exports
 
-Use when: Use when the user has `index.ts` / `index.js` re-export files in a React Native app and wants to remove them — Metro does not tree-shake, so barrels silently pull every re-exported file into the bundle and cause circular-dependency warnings that break HMR. Trigger whenever the user mentions barrel files, barrel exports, `index.ts` re-exports, "Require cycle" warning, eslint-plugin-no-barrel-imports, `date-fns` submodule imports, broken HMR / forced full reload, or asks "why is my bundle bigger than expected after importing one component?" — even without an explicit ask to remove barrels.
+Use when: Use when the user has `index.ts` / `index.js` re-export files in a React Native app and wants to remove them — plain Metro does not tree-shake, so barrels silently pull every re-exported file into the bundle and cause circular-dependency warnings that break HMR. In Expo SDK 54+ or Re.Pack projects with real tree shaking, verify before rewriting imports. Trigger whenever the user mentions barrel files, barrel exports, `index.ts` re-exports, "Require cycle" warning, eslint-plugin-no-barrel-imports, `date-fns` submodule imports, broken HMR / forced full reload, or asks "why is my bundle bigger than expected after importing one component?" — even without an explicit ask to remove barrels.
 
 Follow the skill instructions below. If another RN Perf skill is referenced as `[[skill-name]]`, use that skill's command when it is available, or apply the referenced skill from the package source if you have it loaded.
 
@@ -14,7 +14,7 @@ Gemini CLI appends the user's raw command after this prompt when arguments are p
 The user has barrel `index.ts` files in `components/`, `screens/`, `utils/`, etc., sees Metro `Require cycle: ...` warnings, suffers HMR full-reloads, or notices the bundle is much bigger than expected after importing a single component.
 
 ## What this skill does (single responsibility)
-Eliminates barrel `index.ts` re-export files from app code and switches consumers to direct file imports. This skill is about app-code barrels under Metro specifically — barrels are bad in RN *because* Metro doesn't tree-shake. For the broader fix (enable tree shaking), see [[rn-perf-tree-shaking]]; for measuring the win, see [[rn-perf-analyze-js-bundle]].
+Eliminates barrel `index.ts` re-export files from app code and switches consumers to direct file imports. This skill is about app-code barrels under plain Metro specifically — barrels are bad in RN *because* Metro doesn't tree-shake by default. If the project uses Expo SDK 54+ tree shaking or Re.Pack, measure first because unused barrel exports may already be removed. For the broader fix (enable tree shaking), see [[rn-perf-tree-shaking]]; for measuring the win, see [[rn-perf-analyze-js-bundle]].
 
 ## Workflow
 1. Search the codebase for `index.ts` / `index.js` files inside `components/`, `screens/`, `utils/`, `hooks/` directories. These are likely barrels.
@@ -23,7 +23,7 @@ Eliminates barrel `index.ts` re-export files from app code and switches consumer
    - If many consumers, **rewrite** each consumer one PR at a time (search-replace driven), then delete the barrel.
 3. Verify with [[rn-perf-analyze-js-bundle]] that previously-included unused modules vanish from the treemap.
 4. Install `eslint-plugin-no-barrel-imports` to prevent regression.
-5. For third-party libraries that ship barrels with submodule support (date-fns is the canonical example), use the submodule form.
+5. For third-party libraries that ship barrels with submodule support (date-fns is the canonical example), use the submodule form on plain Metro. In Expo SDK 54+ or Re.Pack, measure first because top-level imports may already be tree-shaken.
 
 ## Code patterns
 
@@ -48,7 +48,7 @@ import Card from './components/Card';
 import Modal from './components/Modal';
 ```
 
-The `date-fns` submodule pattern — the canonical third-party example:
+The `date-fns` submodule pattern — still useful on plain Metro:
 
 ```ts
 // avoid: pulls the entire date-fns library
@@ -86,14 +86,14 @@ yarn add -D eslint-plugin-no-barrel-imports
 ## Edge cases & gotchas
 - **React Native Paper and similar libraries** ship a dedicated Babel plugin that strips unused exports from their barrel — install the plugin instead of rewriting their imports.
 - **The `react-native` package is itself a giant barrel** — its index re-exports every API. Don't try to "fix" it with deep imports: keep the root import. Deep imports of `react-native/Libraries/...` internals are formally deprecated since RN 0.80 (ESLint + console warnings now, removal planned in a future release).
-- **date-fns was specifically designed** to support submodule imports. Not every library is — verify the package's `exports` field in its `package.json` or its docs before assuming submodule paths work.
+- **date-fns was specifically designed** to support submodule imports. With tree shaking enabled (Expo SDK 54+, Re.Pack, or equivalent), top-level imports can be handled automatically; without tree shaking, the submodule pattern still applies. Not every library supports this — verify the package's `exports` field or docs before assuming submodule paths work.
 - **Type-only barrels** (`export type { Foo } from './Foo'`) have no runtime cost — Babel strips them. Keep them if they aid DX.
 - **VS Code "Auto Imports"** will happily insert barrel imports when the file exists. Removing the barrel file forces auto-imports to direct paths.
 - The three problems with barrels: (1) Metro pulls every re-exported file into the bundle; (2) all those modules **evaluate** before the requested one returns, hitting TTI; (3) cycles become trivial to introduce and break HMR.
 - If you can't remove a barrel today, upgrade to a setup with real tree shaking — Re.Pack eliminates unused re-exports automatically. See [[rn-perf-tree-shaking]].
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Avoid Barrel Exports", pp. 156–158.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Avoid Barrel Exports", pp. 192–196.
 - eslint-plugin-no-barrel-imports: https://www.npmjs.com/package/eslint-plugin-no-barrel-imports
 - date-fns submodule docs: https://date-fns.org
 

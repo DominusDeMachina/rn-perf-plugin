@@ -69,7 +69,7 @@ https://pkg-size.dev/react-native-paper
 - All three tools assume **Webpack-style bundling**. Treat the numbers as a ceiling for the JS portion in a RN context.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Determine True Size of Third-Party Libraries", pp. 154–155.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Determine True Size of Third-Party Libraries", pp. 189–191.
 - bundlephobia: https://bundlephobia.com
 - pkg-size: https://pkg-size.dev
 - Import Cost (VS Code/Cursor extension): https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost

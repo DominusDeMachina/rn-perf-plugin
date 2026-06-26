@@ -106,7 +106,7 @@ ReactScrollView   <- <ScrollView/>
 - Setting `collapsable={false}` on the parent does **not** propagate to children — set on each child explicitly.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Use View Flattening", pp. 119–122
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Use View Flattening", pp. 136–139
 - React Native docs: https://reactnative.dev/architecture/view-flattening
 
 ## Related skills

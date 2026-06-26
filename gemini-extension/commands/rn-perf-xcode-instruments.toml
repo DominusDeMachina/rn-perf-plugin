@@ -97,9 +97,9 @@ Navigation cheat sheet:
 - `.trace` files are often hundreds of MB. Don't check them into git.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile Native Parts of React Native", pp. 76–84.
-- Book: same title, "How to Hunt Memory Leaks", pp. 85–87.
-- Book: same title, "Use View Flattening", pp. 119–121.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "How to Profile Native Parts of React Native", pp. 92–101.
+- Book: same title, "How to Hunt Memory Leaks", pp. 159–163.
+- Book: same title, "Use View Flattening", pp. 136–138.
 - Apple: https://developer.apple.com/documentation/xcode/improving-your-app-s-performance
 - Apple: https://developer.apple.com/documentation/xcode/recording-performance-data
 - Apple: https://help.apple.com/instruments/mac/current/

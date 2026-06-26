@@ -18,7 +18,7 @@ Add `noCompress += ["bundle"]` to the `androidResources` block in `android/app/b
 
 ## Workflow
 1. **Check the React Native version.**
-   - **≥ 0.79** — already the default (book p. 175). Inspect generated `build.gradle` to confirm; otherwise skip this skill.
+   - **≥ 0.79** — already the default in modern RN templates. Inspect generated `build.gradle` to confirm; otherwise skip this skill.
    - **< 0.79** — apply the change below.
 2. Edit `android/app/build.gradle` and add an `androidResources` block under `android { ... }`.
 3. Build a release APK: `cd android && ./gradlew assembleRelease`.
@@ -31,7 +31,7 @@ Add `noCompress += ["bundle"]` to the `androidResources` block in `android/app/b
 
 ## Code patterns
 
-`android/app/build.gradle` — the entire change (book pp. 175–176):
+`android/app/build.gradle` — the entire change:
 
 ```gradle
 android {
@@ -75,7 +75,7 @@ unzip -l android/app/build/outputs/apk/release/app-release.apk | grep index.andr
 - **No effect on debug builds** — they load from Metro dev server, not from a prepackaged bundle.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Disable JS Bundle Compression", pp. 175–176
+- Plugin-added guidance retained from earlier RN Perf coverage; the 2026 book discusses Hermes bytecode and memory mapping in app-size analysis, but no longer has a standalone "Disable JS Bundle Compression" chapter.
 - Marc Rousavy's investigation and RN core PR proposing this as default
 
 ## Related skills

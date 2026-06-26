@@ -90,7 +90,7 @@ return <TextInput value={query} onChangeText={setQuery} />;
 - iOS auto-fill, 1Password, and iCloud Keychain can interact differently with uncontrolled inputs — test with real keyboards.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "Uncontrolled Components", pp. 30–33.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "Uncontrolled Components", pp. 37–40.
 - React Hook Form: https://react-hook-form.com
 - RN New Architecture (synchronous layout & events): https://reactnative.dev/architecture/landing-page
 

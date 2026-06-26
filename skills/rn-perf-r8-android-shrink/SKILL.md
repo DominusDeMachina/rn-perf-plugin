@@ -19,7 +19,7 @@ Enable R8 minification, obfuscation, and resource shrinking on the Android `rele
 5. **Smoke-test the release build** end-to-end — R8 strips classes accessed only via reflection. Pay extra attention to Firebase, Realm, payment SDKs, deep-linking, and any annotation-processor-driven library.
 6. For each breakage, add a keep-rule to `android/app/proguard-rules.pro` (templates below).
 7. Configure crash-reporter (Crashlytics, Sentry) to upload `mapping.txt` from `android/app/build/outputs/mapping/release/` so stack traces stay readable.
-8. Re-measure with Ruler (see [[rn-perf-analyze-app-bundle]]). Book benchmark: **9.5 MB → 6.3 MB, a 33% reduction** on a sample app (pp. 150, 168). Mature apps with many existing keep-rules see 5–20%.
+8. Re-measure with Ruler (see [[rn-perf-analyze-app-bundle]]). Book benchmark: **9.5 MB → 6.3 MB, a 33% reduction** on a sample app (pp. 184, 208). Mature apps with many existing keep-rules see 5–20%.
 
 ## Code patterns
 
@@ -44,7 +44,7 @@ android {
 }
 ```
 
-`android/app/proguard-rules.pro` — example Firebase keep-rule (book p. 168):
+`android/app/proguard-rules.pro` — example Firebase keep-rule (book p. 208):
 
 ```
 # Firebase
@@ -73,17 +73,17 @@ General-purpose keep-rule template for any reflection-driven native module:
 - Add a CI build that produces a release APK; surface size via Ruler thresholds.
 
 ## Edge cases & gotchas
-- R8 **replaced ProGuard since RN 0.60** but reuses ProGuard's rules-file format and CLI surface — "proguard" in filenames is expected (book p. 167).
+- R8 **replaced ProGuard since RN 0.60** but reuses ProGuard's rules-file format and CLI surface — "proguard" in filenames is expected (book p. 206).
 - **Obfuscation is on by default with `minifyEnabled`.** Class/method names become `a`, `b`, `c`. Upload `mapping.txt` to your crash reporter per release, or set `-dontobfuscate` if you don't need it.
 - **Hermes/JSC bridge classes** must not be stripped. RN's default ProGuard rules at `proguard-android-optimize.txt` already keep them — don't override unless you know what you're doing.
 - **Reflection blind spots**: code called via `Class.forName(...)` or annotation processing disappears silently. Symptom: feature works in debug but `NoClassDefFoundError` in release. Fix: add keep-rule.
-- `shrinkResources` performs three optimizations (book p. 168): merges duplicate resources, optimizes PNG files by reducing color depth and applying lossless compression, and processes vector drawables — so it can also touch Metro-packed images in `drawable-*-v4` folders (see [[rn-perf-native-assets-folder]]).
+- `shrinkResources` performs three optimizations (book p. 208): merges duplicate resources, optimizes PNG files by reducing color depth and applying lossless compression, and processes vector drawables — so it can also touch Metro-packed images in `drawable-*-v4` folders (see [[rn-perf-native-assets-folder]]).
 - Build time goes up 10–60s on release. Acceptable.
 - The default RN template already has the `enableProguardInReleaseBuilds` flag, usually `false`. Flipping it to `true` is often the entire change.
 - `useLegacyPackaging` and similar flags interact subtly with R8 + Hermes packaging — leave at RN template defaults unless you have a specific reason.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Shrink Code With R8 Android", pp. 167–169
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Shrink Code With R8 Android", pp. 206–209
 - Android docs: https://developer.android.com/build/shrink-code
 
 ## Related skills

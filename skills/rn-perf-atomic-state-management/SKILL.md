@@ -27,7 +27,7 @@ Refactors a global store (Context, Redux, or a single oversized `useState`) into
 
 ## Code patterns
 
-The anti-pattern — one component holds `filter` and `todos`; toggling a todo re-renders the `FilterMenuItem`s even though they don't depend on todos (book p. 42–43):
+The anti-pattern — one component holds `filter` and `todos`; toggling a todo re-renders the `FilterMenuItem`s even though they don't depend on todos (book pp. 51–52):
 
 ```tsx
 const App = () => {
@@ -54,7 +54,7 @@ const App = () => {
 };
 ```
 
-The Jotai fix — `useSetAtom` for write-only consumers means the `TodoItem` doesn't re-render when other todos toggle (book pp. 43–45):
+The Jotai fix — `useSetAtom` for write-only consumers means the `TodoItem` doesn't re-render when other todos toggle (book pp. 52–55):
 
 ```tsx
 import { atom, useAtom, useSetAtom } from 'jotai';
@@ -103,7 +103,7 @@ const TodoItem = ({ item }) => {
 - All three libraries (Jotai, Zustand, Recoil) use `useSyncExternalStore` internally and play well with concurrent React.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "Atomic State Management", pp. 42–45
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "Atomic State Management", pp. 51–55
 - Jotai — https://jotai.org
 - Zustand — https://zustand.docs.pmnd.rs
 - Recoil — https://recoiljs.org (less actively maintained as of 2025)

@@ -44,7 +44,7 @@ Covers picking and driving helper tools (MiniSim, Expo Orbit, Shopify Tophat, th
 
 ## Code/command patterns
 
-Underlying CLIs (book p. 74):
+Underlying CLIs (book p. 89):
 
 ```bash
 # Android
@@ -108,7 +108,7 @@ until xcrun simctl list devices | grep -q Booted; do sleep 1; done
 - Expo Orbit's EAS-build features require an Expo account; local-build installs work without one.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "Understand Platform Differences", pp. 74–75.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "Understand Platform Differences", pp. 89–91.
 - MiniSim: https://github.com/okwasniewski/MiniSim
 - Expo Orbit: https://expo.dev/orbit
 - Shopify Tophat: https://github.com/shopify/tophat

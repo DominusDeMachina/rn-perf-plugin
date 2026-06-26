@@ -100,9 +100,9 @@ Common RN thread lanes:
 - Bottom-Up "hermes" filter relies on intact symbols. R8 + minify renames app classes; `libhermes.so` stays legible.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), "How to Profile Native Parts of React Native", pp. 80–84.
-- Book: same title, "How to Hunt Memory Leaks", pp. 88–90.
-- Book: same title, "Use View Flattening", p. 122.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), "How to Profile Native Parts of React Native", pp. 96–101.
+- Book: same title, "How to Hunt Memory Leaks", pp. 164–167.
+- Book: same title, "Use View Flattening", p. 139.
 - Android: https://developer.android.com/studio/profile
 - Android: https://developer.android.com/studio/profile/cpu-profiler
 - Android: https://developer.android.com/studio/profile/memory-profiler

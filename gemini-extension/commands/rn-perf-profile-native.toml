@@ -77,7 +77,7 @@ RCTViewComponentView                  -> iOS Fabric view component
 - Block on JS thread doesn't immediately freeze UI — *"You can effectively block the JS thread, and users will still be able to interact with native UI elements"* — so a "responsive" UI doesn't prove the JS thread is healthy.
 
 ## References
-- Book: "The Ultimate Guide to React Native Optimization" (2025), chapter "How to Profile Native Parts of React Native", pp. 76–84.
+- Book: "The Ultimate Guide to React Native Optimization" (2026), chapter "How to Profile Native Parts of React Native", pp. 92–101.
 - Perfetto: https://ui.perfetto.dev
 
 ## Related skills

@@ -13,6 +13,5 @@
     "profiling",
     "mobile",
     "bundle-size"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }

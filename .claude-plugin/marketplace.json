@@ -1,0 +1,19 @@
+{
+  "name": "rn-perf-local",
+  "owner": {
+    "name": "Gennadiy Furduy",
+    "email": "Gfurduy@labforty.com"
+  },
+  "metadata": {
+    "description": "Local marketplace for installing the RN Perf plugin directly from this repo checkout."
+  },
+  "plugins": [
+    {
+      "name": "rn-perf",
+      "source": "./",
+      "description": "React Native performance toolkit: 43 skills covering profiling, memory, bundling, native modules, animations, lists, bottom sheets, images, navigation, data fetching, storage, startup, perceived performance, production monitoring, app-size optimization, and Android release compatibility.",
+      "version": "0.1.0",
+      "category": "Developer Tools"
+    }
+  ]
+}
